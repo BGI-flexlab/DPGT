@@ -432,6 +432,7 @@ public class JointCallingSpark {
             bp_reader.close();
             int variantsNumInEachReducer=bpIter/options.getReducerNumber();
             bp_reader=new BufferedReader(new FileReader(mergedAllBPs));
+            //bpPartition: record end position of each genotype container process region
             ArrayList<Long> bpPartition=new ArrayList<>();
             bpIter=0;
             String lastBpRegion=null;
@@ -483,9 +484,9 @@ public class JointCallingSpark {
             for(int i=0;i<options.getReducerNumber()*3;i++){
                 tmpStr.add("abc"+String.valueOf(i));
             }
-            JavaRDD<String> nonsenceRDD=sc.parallelize(tmpStr,options.getReducerNumber());
+            JavaRDD<String> nonsenseRDD=sc.parallelize(tmpStr,options.getReducerNumber());
             if(doGenotype) {
-                JavaRDD<String> variantsNum = nonsenceRDD.mapPartitionsWithIndex(new ParseCombineAndGenotypeGVCFs(region, regions, args, mergedAllBPs, confMap, dBC, iter, bpPartition,totalVariantsNum), true);
+                JavaRDD<String> variantsNum = nonsenseRDD.mapPartitionsWithIndex(new ParseCombineAndGenotypeGVCFs(region, regions, args, mergedAllBPs, confMap, dBC, iter, bpPartition,totalVariantsNum), true);
                 variantsNum.collect();
             }
 
@@ -502,7 +503,16 @@ public class JointCallingSpark {
             }
             logger.info("current total variants:\t"+totalVariantsNum.value());
         }
-
+        //create files of each contains whole chromosome data
+        if(options.isMergeChrom()){
+            //merge chr1-22,X,Y,M as default
+            ArrayList<Integer> tmpList=new ArrayList<>();
+            for(int i=1;i<=100;i++){
+                tmpList.add(i);
+            }
+            JavaRDD<Integer> nonsenseRDD2=sc.parallelize(tmpList,26);
+            nonsenseRDD2.mapPartitionsWithIndex(new MergeToChrom(iter,dBC),true).collect();
+        }
         sc.stop();
     }
 

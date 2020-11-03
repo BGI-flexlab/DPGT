@@ -24,6 +24,7 @@ import org.bgi.flexlab.gaea.data.structure.location.GenomeLocationParser;
 import org.bgi.flexlab.gaea.data.structure.reference.ReferenceShare;
 import org.bgi.flexlab.gaea.data.structure.reference.index.VcfIndex;
 import org.bgi.flexlab.gaea.data.structure.vcf.VCFLocalLoader;
+import org.bgi.flexlab.gaea.data.structure.vcf.VCFLocalWriter;
 import org.bgi.flexlab.gaea.data.variant.filter.VariantRegionFilter;
 import org.bgi.flexlab.gaea.tools.jointcalling.JointCallingEngine;
 import org.bgi.flexlab.gaea.tools.jointcalling.util.MultipleVCFHeaderForJointCalling;
@@ -146,6 +147,13 @@ private String winLine=null;
         if(header2 == null)
             throw new RuntimeException("header is null !!!");
 //        Path pBPpath=new Path(bpFile);
+        String mergedHeaderFile=dBC.options.getOutDir()+"/merged.vcfheader";
+        File hFile=new File(mergedHeaderFile);
+        if(!hFile.exists()) {
+            VCFLocalWriter mergedVCFHeaderWriter = new VCFLocalWriter(mergedHeaderFile, false, false);
+            mergedVCFHeaderWriter.writeHeader(header2);
+            mergedVCFHeaderWriter.close();
+        }
         BufferedReader bp_reader=new BufferedReader(new FileReader(bpFile));
         winLine=bp_reader.readLine();
         System.out.println("reduce setup done");
@@ -184,17 +192,22 @@ private String winLine=null;
             BlockCompressedInputStream reader=new BlockCompressedInputStream(new File(targetFileName));
             BufferedReader idxReader=new BufferedReader(new FileReader(targetFileName+".idx"));
             String idxLine;
+            boolean findIdx=false;
             while((idxLine=idxReader.readLine())!=null){
                 String[] eles=idxLine.split("\t");
                 int idx=Integer.parseInt(eles[0]);
                 if(idx==index) {
                     reader.seek(Long.parseLong(eles[1]));
                     endOffset.add(Long.parseLong(eles[2]));
+                    findIdx=true;
                     break;
                 }
             }
             idxReader.close();
-
+            if(!findIdx){
+                reader.seek(0);
+                endOffset.add(-1L);
+            }
 
             VCFHeader curSamplesMergedHeader=new VCFHeader(dBC.virtualHeader.getMetaDataInInputOrder(),samplesInMap);
             VCFCodec codec=new VCFCodec();
@@ -230,6 +243,9 @@ private String winLine=null;
             int start = curRegion.getStart();
             String chr = curRegion.getContig();
             int chrInx = dBC.chrIndex.get(chr);
+            if(chrInx>=25){
+                continue;
+            }
             int contigLength = header.getSequenceDictionary().getSequence(chr).getSequenceLength();
             int end = curRegion.getEnd();
             long regionStart=dBC.accumulateLength.get(chrInx)+start;
@@ -309,6 +325,10 @@ private String winLine=null;
                         }
                         continue;
                     }
+                }else{
+                    if(smallWinEndLong>=bpPartition.get(index)){
+                        smallWinEndLong=bpPartition.get(index)-1;
+                    }
                 }
                 if(smallWinStartLong>smallWinEndLong){
                     break;
@@ -323,6 +343,7 @@ private String winLine=null;
                         continue;
                     }
                     boolean remove=false;
+                    boolean breakFor=false;
                     if(lastVCs.containsKey(i)){
                         for(VariantContext lastVC:lastVCs.get(i)){
                             long curPosStartLong=dBC.accumulateLength.get(dBC.chrIndex.get(lastVC.getContig()))+lastVC.getStart();
@@ -338,12 +359,18 @@ private String winLine=null;
                                 regionVcs.add(lastVC);
                             }else if(curPosEndLong<smallWinStartLong){
                                 remove=true;
+                            }else{
+                                breakFor=true;
+                                break;
                             }
 
                         }
                         if(remove){
                             lastVCs.remove(i);
                         }
+                    }
+                    if(breakFor){
+                        break;
                     }
                     String line = null;
                     while(true){
@@ -420,10 +447,23 @@ private String winLine=null;
                     maps.remove("SM");
                     info.setAttributes(maps);
                     String value=vcfEncoder.encode(variantContext)+"\n";
-                    out.write(value.getBytes());
+                    long vcStart=dBC.accumulateLength.get(dBC.chrIndex.get(variantContext.getContig()))+variantContext.getStart();
+                    boolean writeFlag=false;
+                    if(index==0){
+                        if(vcStart<bpPartition.get(index)){
+                            writeFlag=true;
+                        }
+                    }else{
+                        if(vcStart<bpPartition.get(index) && vcStart>=bpPartition.get(index-1)){
+                            writeFlag=true;
+                        }
+                    }
+                    if(writeFlag) {
+                        out.write(value.getBytes());
+                        totalVariantsNum.add(1);
+                        vcNum++;
+                    }
                     maps.clear();
-                    totalVariantsNum.add(1);
-                    vcNum++;
                     while(regionVcs.size()>0){
                         VariantContext firstVc=regionVcs.getFirst();
                         if(firstVc.getEnd()<=iter){

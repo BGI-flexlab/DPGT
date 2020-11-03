@@ -33,6 +33,7 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 	private String targetRegion=null;//l，目标处理区域
 	private int num_reducer = 100;//n
 	private int num_mapper = 100;//N
+	private boolean mergeChrom=false;//c
 
 //	private String tmpOut=null;//t
 	private String output = null;//o
@@ -79,6 +80,7 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 		addOption("l","targetRegion",true,"target region to process");
 		addOption("N", "combine", true, "core number used in combine step[100]");
 		addOption("n", "genotype", true, "core number used in genotype step[100]");
+		addOption("c","mergeChrom",false,"output files of each with one chromosome data");
 		addOption("m","max_num_PL_values",true,"Maximum number of PL values to output");
 		addOption("M","max_alternate_alleles",true,"Maximum number of alternate alleles to genotype");
 		addOption("o", "output", true, "output directory", true);
@@ -136,6 +138,7 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 		this.windows_size = getOptionIntValue("w",5000);
 		this.num_mapper=getOptionIntValue("N", 100);
 		this.num_reducer = getOptionIntValue("n",100);
+		this.mergeChrom=getOptionBooleanValue("c",false);
 
 //		this.tmpOut=getOptionValue("t",null);
 		this.output = getOptionValue("o",null);
@@ -349,5 +352,13 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 
 	public void setRegionSize(long regionSize) {
 		this.regionSize = regionSize;
+	}
+
+	public boolean isMergeChrom() {
+		return mergeChrom;
+	}
+
+	public void setMergeChrom(boolean mergeChrom) {
+		this.mergeChrom = mergeChrom;
 	}
 }

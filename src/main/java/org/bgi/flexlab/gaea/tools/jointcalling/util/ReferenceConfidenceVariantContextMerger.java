@@ -549,6 +549,9 @@ public class ReferenceConfidenceVariantContextMerger {
 		final Map<String, List<Comparable>> parsedAnnotations = new HashMap<>();
 		for (Map.Entry<String, List<ReducibleAnnotationData>> currentData : annotationMap.entrySet()) {
 			List<Comparable> annotationValues = new ArrayList<>();
+			if(currentData.getKey().equals("SM")){
+				continue;
+			}
 			for (ReducibleAnnotationData value : currentData.getValue()) {
 				try {
 					final String stringValue = value.getRawData();

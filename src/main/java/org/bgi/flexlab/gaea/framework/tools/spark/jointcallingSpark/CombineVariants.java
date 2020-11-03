@@ -711,7 +711,12 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                         }
 
                         CommonInfo info = mergedVC.getCommonInfo();
-                        if (!info.hasAttribute("SM")) info.putAttribute("SM", mapSMtagInt);
+                        if (!info.hasAttribute("SM")){
+                            info.putAttribute("SM", mapSMtagInt);
+                        }else{
+                            logger.warn("SM tag exists"+info.getAttribute("SM")+"\t"+mergedVC);
+                            info.putAttribute("SM", mapSMtagInt);
+                        }
                         if(!info.hasAttribute("END")){
                             info.putAttribute("END",mergedVC.getEnd());
                         }
