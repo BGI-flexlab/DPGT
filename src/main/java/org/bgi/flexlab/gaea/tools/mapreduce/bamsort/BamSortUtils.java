@@ -17,7 +17,7 @@
 package org.bgi.flexlab.gaea.tools.mapreduce.bamsort;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SamFileHeaderMerger;
 import org.apache.hadoop.conf.Configuration;

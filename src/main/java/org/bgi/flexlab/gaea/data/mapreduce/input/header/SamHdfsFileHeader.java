@@ -17,9 +17,11 @@
 package org.bgi.flexlab.gaea.data.mapreduce.input.header;
 
 import htsjdk.samtools.SAMFileHeader;
-import htsjdk.samtools.SAMFileReader;
+import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamFileHeaderMerger;
+import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.cram.build.CramIO;
+import htsjdk.samtools.cram.structure.CramHeader;
 import htsjdk.samtools.seekablestream.SeekableStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -57,7 +59,7 @@ public class SamHdfsFileHeader extends SamFileHeader {
 
 	@SuppressWarnings("deprecation")
 	public static SAMFileHeader getSAMHeader(FileSystem fs, Path file) throws IOException {
-		SAMFileReader samr = new SAMFileReader(fs.open(file));
+		SamReader samr = SamReaderFactory.makeDefault().open((java.nio.file.Path) file);
 		SAMFileHeader header = samr.getFileHeader();
 		samr.close();
 		if (header == null) {
@@ -67,9 +69,9 @@ public class SamHdfsFileHeader extends SamFileHeader {
 		return header;
 	}
 
-	public static SAMFileHeader getCramHeader(FileSystem fs, Path path) throws IOException {
+	public static CramHeader getCramHeader(FileSystem fs, Path path) throws IOException {
 		SeekableStream sin = WrapSeekable.openPath(fs, path);
-		SAMFileHeader header = CramIO.readCramHeader(sin).getSamFileHeader();
+		CramHeader header = CramIO.readCramHeader(sin);
 		sin.close();
 		return header;
 	}
@@ -83,11 +85,11 @@ public class SamHdfsFileHeader extends SamFileHeader {
 				throw new RuntimeException(e.toString());
 			}
 		} else {
-			try {
-				header = getCramHeader(fs, input);
-			} catch (IOException e) {
-				throw new RuntimeException(e.toString());
-			}
+//			try {
+//				header = getCramHeader(fs, input);
+//			} catch (IOException e) {
+//				throw new RuntimeException(e.toString());
+//			}
 		}
 		return header;
 	}

@@ -16,6 +16,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -196,24 +198,36 @@ public class JointCallingEngine {
 		genotypingEngine = new UnifiedGenotypingEngine(sampleNames.size(), options, this.parser);
 
 		// take care of the VCF headers
+
 		final Set<VCFHeaderLine> headerLines = new HashSet<VCFHeaderLine>();
 
-		headerLines.removeIf(vcfHeaderLine -> vcfHeaderLine.getKey().contains(GVCF_BLOCK));
+
 
 		headerLines.addAll(multiHeaders.getMergeHeader().getMetaDataInInputOrder());
 
 
 		//headerLines.addAll(vcfheader.getMetaDataInInputOrder());
-
-		headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions());
-		headerLines.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
-
+		headerLines.removeIf(vcfHeaderLine -> vcfHeaderLine.getKey().contains(GVCF_BLOCK));
+		for(VCFHeaderLine hl:annotationEngine.getVCFAnnotationDescriptions()){
+            headerLines.removeIf(vcfHeaderLine -> idEquals(vcfHeaderLine,hl));
+            headerLines.add(hl);
+        }
+//		headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions());
+        for(VCFHeaderLine hl:genotypingEngine.getAppropriateVCFInfoHeaders()){
+            headerLines.removeIf(vcfHeaderLine -> vcfHeaderLine.getKey().equals(hl.getKey()));
+            headerLines.add(hl);
+        }
+//		headerLines.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
 		// add headers for annotations added by this tool
+		headerLines.removeIf(vcfHeaderLine -> vcfHeaderLine.getKey().contains(GVCF_BLOCK));
+		headerLines.removeIf(vcfHeaderLine -> (vcfHeaderLine.getKey().equals("INFO") && getInfoID(vcfHeaderLine).equals(GaeaVCFConstants.MLE_ALLELE_COUNT_KEY)));
+		headerLines.removeIf(vcfHeaderLine -> (vcfHeaderLine.getKey().equals("INFO") && getInfoID(vcfHeaderLine).equals(GaeaVCFConstants.MLE_ALLELE_FREQUENCY_KEY)));
+		headerLines.removeIf(vcfHeaderLine -> (vcfHeaderLine.getKey().equals("INFO") && getInfoID(vcfHeaderLine).equals(GaeaVCFConstants.REFERENCE_GENOTYPE_QUALITY)));
+		headerLines.removeIf(vcfHeaderLine -> (vcfHeaderLine.getKey().equals("INFO") && getInfoID(vcfHeaderLine).equals(VCFConstants.DEPTH_KEY)));
 		headerLines.add(GaeaVcfHeaderLines.getInfoLine(GaeaVCFConstants.MLE_ALLELE_COUNT_KEY));
 		headerLines.add(GaeaVcfHeaderLines.getInfoLine(GaeaVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
 		headerLines.add(GaeaVcfHeaderLines.getFormatLine(GaeaVCFConstants.REFERENCE_GENOTYPE_QUALITY));
 		headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));
-		
 		if ( INCLUDE_NON_VARIANTS ) {
             // Save INFO header names that require alt alleles
             for ( final VCFHeaderLine headerLine : headerLines ) {
@@ -227,7 +241,6 @@ public class JointCallingEngine {
 		
 		if (options.getDBSnp() != null)
 			VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
-
 		vcfHeader = new VCFHeader(headerLines, sampleNames);
 //		
 		//this.vcfHeaderDateCaches = multiHeaders.getHeaderDataCache();
@@ -344,7 +357,33 @@ public class JointCallingEngine {
 //		
 //		this.samples=newSamples;
 	}
-	public static Set<String> getSampleList(Set<VCFHeader> headers) {
+
+	private String getInfoID(VCFHeaderLine vcfHeaderLine) {
+		String pattern=".*<ID=(.*?),.*";
+		Pattern r=Pattern.compile(pattern);
+		Matcher h1m=r.matcher(vcfHeaderLine.toString());
+		if(h1m.find()){
+			return h1m.group(1);
+		}else{
+			return "";
+		}
+	}
+
+	private boolean idEquals(VCFHeaderLine vcfHeaderLine, VCFHeaderLine hl) {
+		if(vcfHeaderLine.getKey().equals(hl.getKey())){
+			String h1ID=getInfoID(vcfHeaderLine);
+			String h2ID=getInfoID(hl);
+			if(h1ID!="" && h2ID!=""){
+				return h1ID.equals(h2ID);
+			}else{
+				return false;
+			}
+		}else{
+			return false;
+		}
+    }
+
+    public static Set<String> getSampleList(Set<VCFHeader> headers) {
 		Set<String> samples = new TreeSet<String>();
 		for (VCFHeader header : headers) {
 			for (String sample : header.getGenotypeSamples()) {

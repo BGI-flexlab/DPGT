@@ -34,7 +34,7 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 	private int num_reducer = 100;//n
 	private int num_mapper = 100;//N
 	private boolean mergeChrom=false;//c
-
+	private boolean keepCombine=false;//z
 //	private String tmpOut=null;//t
 	private String output = null;//o
 	private String reference = null;//r
@@ -93,6 +93,7 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 		addOption("U","useNewAFCalculator",false,"Use new AF model instead of the so-called exact model");
 		addOption("w", "keyWindow", true, "window size for key[5000]");
 		addOption("W","regionSize",true,"region size per cycle process"); //no need for window file input, it will be created by program
+		addOption("z","keepCombine",false,"do not remove combine output");
 		FormatHelpInfo(SOFTWARE_NAME,SOFTWARE_VERSION);
 	}
 
@@ -139,7 +140,7 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 		this.num_mapper=getOptionIntValue("N", 100);
 		this.num_reducer = getOptionIntValue("n",100);
 		this.mergeChrom=getOptionBooleanValue("c",false);
-
+		this.keepCombine=getOptionBooleanValue("z",false);
 //		this.tmpOut=getOptionValue("t",null);
 		this.output = getOptionValue("o",null);
 		this.reference = getOptionValue("r",null);
@@ -162,6 +163,7 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 		this.STANDARD_CONFIDENCE_FOR_EMITTING = getOptionDoubleValue("s",30.0);
 		this.STANDARD_CONFIDENCE_FOR_CALLING = getOptionDoubleValue("S",30.0);
 		this.heterozygosityStandardDeviation = getOptionDoubleValue("j",0.01);
+
 	}
 	
 	private void parseOutputMode(String mode){
@@ -288,18 +290,33 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 //		return this.winFile;
 //	}
 	public String getOutDir(){
-		return this.output;
+		if(this.output.startsWith("file://")){
+			String value=this.output.substring(7);
+			return value;
+		}else {
+			return this.output;
+		}
 	}
 	public List<String> getInputStringList(){
 		return this.input;
 	}
 	
 	public String getReference(){
-		return this.reference;
+		if(!this.reference.startsWith("file://")){
+			String value="file://"+this.reference;
+			return value;
+		}else {
+			return this.reference;
+		}
 	}
 	
 	public String getDBSnp(){
-		return this.dbsnp;
+		if(this.dbsnp.startsWith("file://")){
+			String value=this.dbsnp.substring(7);
+			return value;
+		}else {
+			return this.dbsnp;
+		}
 	}
 	
 	public boolean isUniquifySamples(){
@@ -360,5 +377,13 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 
 	public void setMergeChrom(boolean mergeChrom) {
 		this.mergeChrom = mergeChrom;
+	}
+
+	public boolean isKeepCombine() {
+		return keepCombine;
+	}
+
+	public void setKeepCombine(boolean keepCombine) {
+		this.keepCombine = keepCombine;
 	}
 }

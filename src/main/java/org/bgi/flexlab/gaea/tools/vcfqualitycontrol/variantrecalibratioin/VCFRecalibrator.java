@@ -112,7 +112,7 @@ public class VCFRecalibrator {
     /**
      * recal one vcf file
      * @param id
-     * @param values
+//     * @param values
      * @throws InterruptedException 
      * @throws IOException
      */

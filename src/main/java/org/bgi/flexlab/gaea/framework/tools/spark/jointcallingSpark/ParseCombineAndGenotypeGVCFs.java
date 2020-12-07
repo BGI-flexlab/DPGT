@@ -243,9 +243,9 @@ private String winLine=null;
             int start = curRegion.getStart();
             String chr = curRegion.getContig();
             int chrInx = dBC.chrIndex.get(chr);
-            if(chrInx>=25){
-                continue;
-            }
+//            if(chrInx>=25){
+//                continue;
+//            }
             int contigLength = header.getSequenceDictionary().getSequence(chr).getSequenceLength();
             int end = curRegion.getEnd();
             long regionStart=dBC.accumulateLength.get(chrInx)+start;
