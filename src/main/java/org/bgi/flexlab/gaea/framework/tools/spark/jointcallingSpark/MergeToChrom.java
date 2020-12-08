@@ -133,8 +133,12 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
                                 if (integer == 25) {
                                     justCopyList.add(gtFile.getAbsolutePath());
                                 } else {
-                                    if(justCopyList.size()>0)
+                                    if(justCopyList.size()>0) {
                                         lastFile = justCopyList.remove(justCopyList.size() - 1);
+                                        breakFlag = true;
+                                        in.close();
+                                        break;
+                                    }
                                     if(!firstFile.isEmpty()) {
                                         breakFlag = true;
                                         in.close();
