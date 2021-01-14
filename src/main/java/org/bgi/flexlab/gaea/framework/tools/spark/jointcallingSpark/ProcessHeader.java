@@ -1,20 +1,25 @@
 package org.bgi.flexlab.gaea.framework.tools.spark.jointcallingSpark;
 
+import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.function.Function2;
 import org.bgi.flexlab.gaea.data.structure.vcf.VCFLocalLoader;
 import org.bgi.flexlab.gaea.data.structure.vcf.VCFLocalWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.TreeSet;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public class ProcessHeader implements Function2<Integer,Iterator<String>,Iterator<String>> {
     public JointCallingSparkOptions options;
@@ -22,12 +27,12 @@ public class ProcessHeader implements Function2<Integer,Iterator<String>,Iterato
         this.options=options;
     }
     @Override public Iterator<String> call(Integer v1, Iterator<String> v2) throws Exception {
+        Logger log= LoggerFactory.getLogger(ProcessHeader.class);
         BufferedWriter vcfHeaderWriter=new BufferedWriter(new FileWriter(options.getOutDir()+"/headers/vcfPathName"+v1));
         int inputIndex=0;
         LinkedHashSet<VCFHeader> headers=new LinkedHashSet<>();
         TreeSet<String> sampleNames=new TreeSet<>();
         int timeIter=0;
-        Logger log= LoggerFactory.getLogger(ProcessHeader.class);
         VCFHeader mergeHeader=null;
         while(v2.hasNext()){
             String a=v2.next();

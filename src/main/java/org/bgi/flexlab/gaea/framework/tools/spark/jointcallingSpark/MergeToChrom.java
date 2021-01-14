@@ -251,13 +251,20 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
         iterator.close();
         lineReader.close();
         String line;
-        while ((line=bci.readLine())!=null) {
+        boolean readHeader=false;
+        long position=0;
+        while (true) {
+            if(readHeader) {
+                position = bci.getPosition();
+            }
+            if((line=bci.readLine())==null){
+                break;
+            }
             if(line.startsWith("#")){
+                readHeader=true;
                 continue;
             }
-            final long position = bci.getPosition();
 //            final long position2 = BlockCompressedFilePointerUtil.getBlockAddress(bci.getPosition());
-
             currentContext = codec.decode(line);
             checkSorted(lastContext, currentContext);
             //should only visit chromosomes once

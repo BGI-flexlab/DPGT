@@ -126,12 +126,21 @@ private String winLine=null;
             tmpNameHeaders.put(kv.getValue(),samples);
         }
         headers.setNameHeaders(tmpNameHeaders);
+        Integer totalSampleSize=dBC.sampleIndex.size();
+        if(totalSampleSize==0){
+            log.error("sample size is 0");
+            System.exit(1);
+        }
+        Integer realSmallWindowSize=totalSampleSize>100000?10000000/totalSampleSize:dBC.options.getWindowsSize();
+        if(realSmallWindowSize==0){
+            realSmallWindowSize=10;
+        }
         String sampleStr = confMap.get(dBC.INPUT_ORDER);
         String[] allSample=sampleStr.split(",");
 //        int mapperLine=allSample.length/options.getMapperNumber()<2?2:allSample.length/options.getMapperNumber();
 //        int mapperLine=10;
 
-
+        dBC.pathSample=null;
         System.out.println(formatter.format(new Date())+"\tbefore engine init");
         dBC.options.setS(dBC.options.STANDARD_CONFIDENCE_FOR_CALLING);
         dBC.options.sets(dBC.options.STANDARD_CONFIDENCE_FOR_EMITTING);
@@ -215,8 +224,11 @@ private String winLine=null;
             samplesCodec.add(codec);
             samplesReader.add(reader);
         }
-        if(samplesReader.size()!=dBC.multiMapSampleNames.size() || samplesCodec.size()!=dBC.multiMapSampleNames.size()){
-            log.error("code error2\t"+samplesReader.size()+"\t"+dBC.multiMapSampleNames.size());
+        dBC.sampleIndex=null;
+        Integer multiMapSampleSize=dBC.multiMapSampleNames.size();
+        dBC.multiMapSampleNames=null;
+        if(samplesReader.size()!=multiMapSampleSize || samplesCodec.size()!=multiMapSampleSize){
+            log.error("code error2\t"+samplesReader.size()+"\t"+multiMapSampleSize);
             System.exit(1);
         }
         int vcNum=0;
@@ -234,8 +246,8 @@ private String winLine=null;
 //        if(rangeInEachOutFile<minRange){
 //            rangeInEachOutFile=minRange;
 //        }
-        boolean[] readerDone=new boolean[dBC.multiMapSampleNames.size()];
-        for(int i=0;i<dBC.multiMapSampleNames.size();i++){
+        boolean[] readerDone=new boolean[multiMapSampleSize];
+        for(int i=0;i<multiMapSampleSize;i++){
             readerDone[i]=false;
         }
         vcfEncoder = new VCFEncoder(header, true, true);
@@ -285,12 +297,12 @@ private String winLine=null;
             LinkedList<VariantContext> regionVcs=new LinkedList<>();
 //            long smallWinStartLong=dBC.accumulateLength.get(chrInx)+start+rangeInEachOutFile*index;
             long smallWinStartLong=regionStart;
-            long smallWinEndLong=smallWinStartLong+dBC.options.getWindowsSize()-1;
+            long smallWinEndLong=smallWinStartLong+realSmallWindowSize-1;
             if(smallWinEndLong>regionEnd){
                 smallWinEndLong=regionEnd;
             }
             int smallWinStart=start;
-            int smallWinEnd=smallWinStart+dBC.options.getWindowsSize()-1;
+            int smallWinEnd=smallWinStart+realSmallWindowSize-1;
             if(smallWinEnd>contigLength){
                 smallWinEnd=contigLength;
             }
@@ -310,12 +322,12 @@ private String winLine=null;
                 if(index>0){
                     if(smallWinEndLong<bpPartition.get(index-1)) {
                         smallWinStartLong=smallWinEndLong+1;
-                        smallWinEndLong=smallWinStartLong+dBC.options.getWindowsSize()-1;
+                        smallWinEndLong=smallWinStartLong+realSmallWindowSize-1;
                         if(smallWinEndLong>regionEnd){
                             smallWinEndLong=regionEnd;
                         }
                         smallWinStart=smallWinEnd+1;
-                        smallWinEnd=smallWinStart+dBC.options.getWindowsSize()-1;
+                        smallWinEnd=smallWinStart+realSmallWindowSize-1;
                         if(smallWinEnd>contigLength){
                             smallWinEnd=contigLength;
                         }
@@ -333,12 +345,16 @@ private String winLine=null;
                 if(smallWinStartLong>smallWinEndLong){
                     break;
                 }
-                long startPosition = dbsnpShare.getStartPosition(chr,smallWinStart / dBC.options.getWindowsSize(),smallWinEnd/dBC.options.getWindowsSize(),dBC.options.getWindowsSize());
+                Integer minWindowSize=dBC.options.getWindowsSize();
+                if(realSmallWindowSize<100){
+                    minWindowSize=100;
+                }
+                long startPosition = dbsnpShare.getStartPosition(chr,smallWinStart / minWindowSize,smallWinEnd/minWindowSize,minWindowSize);
                 if (startPosition >= 0) dbsnps = filter.loadFilter(loader, chr, startPosition, smallWinEnd);
                 engine.init(dbsnps);
                 System.out.println("dbsnp size:\t"+dbsnps.size());
                 Set<Integer> bps=new TreeSet<>();
-                for(int i=0;i<dBC.multiMapSampleNames.size();i++){
+                for(int i=0;i<multiMapSampleSize;i++){
                     if(readerDone[i]){
                         continue;
                     }
@@ -474,12 +490,12 @@ private String winLine=null;
                     }
                 }
                 smallWinStartLong=smallWinEndLong+1;
-                smallWinEndLong=smallWinStartLong+dBC.options.getWindowsSize()-1;
+                smallWinEndLong=smallWinStartLong+realSmallWindowSize-1;
                 if(smallWinEndLong>regionEnd){
                     smallWinEndLong=regionEnd;
                 }
                 smallWinStart=smallWinEnd+1;
-                smallWinEnd=smallWinStart+dBC.options.getWindowsSize()-1;
+                smallWinEnd=smallWinStart+realSmallWindowSize-1;
                 if(smallWinEnd>contigLength){
                     smallWinEnd=contigLength;
                 }

@@ -73,6 +73,7 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
     private final Comparator<VariantContext> comparator4 = new VcComp();
     @Override public void call(Iterator<String> StringIterator) throws Exception {
         //与map的setup功能类似
+        dBC.multiMapSampleNames=null;
         Configuration conf=new Configuration();
         SeekableStream in2 = new SeekableFileStream(new File(outputDir+"/vcfheader"));
         VCFHeader mergedHeader = VCFHeaderReader.readHeaderFrom(in2);
@@ -229,7 +230,8 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
         logger.warn("mapGvcfList Size:\t"+mapGvcfList.size());
         pathSample.clear();
         sampleIndex.clear();
-
+        dBC.pathSample=null;
+        dBC.sampleIndex=null;
         long rangeInEachOutFile=(gloc.getEnd()-gloc.getStart())/options.getReducerNumber();
         int minRange=100000;
         if(rangeInEachOutFile<minRange){
