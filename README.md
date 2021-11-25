@@ -62,9 +62,10 @@ spark-submit  \
 |  W | regionSize     | true  | false|  region size per cycle process.|
 |  z | keepCombine     |  false | false|  do not remove combine output.|
 
-**Note: The reference can be obtained from the following command, where gaea-1.0.0.jar is in the resources directory. This will give you the WindowIndex directory.
+
+**Note: The reference can be obtained from the following command, where gaea.jar needs to be built and packaged from [SOAPgaea](https://github.com/BGI-flexlab/SOAPgaea). This will give you the WindowIndex directory.
 ```
-java -cp gaea-1.0.0.jar org.bgi.flexlab.gaea.data.structure.reference.index.VcfIndex ref.fa dbsnp.vcf
+java -cp gaea.jar org.bgi.flexlab.gaea.data.structure.reference.index.VcfIndex ref.fa dbsnp.vcf
 ```
 
 
