@@ -63,7 +63,7 @@ spark-submit  \
 |  z | keepCombine     |  false | false|  do not remove combine output.|
 
 **Note: The reference can be obtained from the following command, where gaea-1.0.0.jar is in the resources directory. This will give you the WindowIndex directory.
-```aidl
+```
 java -cp gaea-1.0.0.jar org.bgi.flexlab.gaea.data.structure.reference.index.VcfIndex ref.fa dbsnp.vcf
 ```
 
