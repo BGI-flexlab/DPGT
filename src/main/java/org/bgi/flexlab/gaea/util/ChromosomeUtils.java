@@ -19,9 +19,10 @@ package org.bgi.flexlab.gaea.util;
 public class ChromosomeUtils {
 	
 	public static String formatChrName(String chrName) {
-		chrName = chrName.toLowerCase();
-		if(!chrName.startsWith("chr")) {
+		if(!chrName.toLowerCase().startsWith("chr")) {
 			chrName = "chr" + chrName;
+		}else {
+			chrName ="chr" + chrName.substring(3);
 		}
 		return chrName;
 	}
