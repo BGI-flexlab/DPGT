@@ -327,16 +327,19 @@ public class JointCallingSpark {
         Long longEnd=longStart+step;
         GenomeLongRegion region=new GenomeLongRegion(longStart,longEnd);
         Long cycleEnd=totalLength;
+        int contigIdx =-1;
         if(options.getTargetRegion()!=null){
             GenomeLocation targetRegion=parseRegionFromString(options.getTargetRegion());
-            region.setStart(accumulateLength.get(chrIndex.get(targetRegion.getContig()))+targetRegion.getStart());
-            if(accumulateLength.get(chrIndex.get(targetRegion.getContig()))+targetRegion.getEnd()-accumulateLength.get(chrIndex.get(targetRegion.getContig()))+targetRegion.getStart()>step){
+            contigIdx = chrIndex.get(targetRegion.getContig());
+            Long len = accumulateLength.get(contigIdx);
+            region.setStart(len+targetRegion.getStart());
+            if(targetRegion.getEnd()+targetRegion.getStart()>step){
                 region.setEnd(region.getStart()+step);
             }else{
-                region.setEnd(accumulateLength.get(chrIndex.get(targetRegion.getContig()))+targetRegion.getEnd());
+                region.setEnd(len+targetRegion.getEnd());
             }
-            if(accumulateLength.get(chrIndex.get(targetRegion.getContig()))+targetRegion.getEnd()<cycleEnd){
-                cycleEnd=accumulateLength.get(chrIndex.get(targetRegion.getContig()))+targetRegion.getEnd();
+            if(len+targetRegion.getEnd()<cycleEnd){
+                cycleEnd=len+targetRegion.getEnd();
             }
         }
         final LongAccumulator totalVariantsNum=sc.sc().longAccumulator("Variants num");
@@ -514,6 +517,9 @@ public class JointCallingSpark {
             logger.info("current total variants:\t"+totalVariantsNum.value());
         }
         //create files of each contains whole chromosome data
+        if (options.getTargetRegion() != null){
+            iter = contigIdx;
+        }
         if(options.isMergeChrom()){
             //merge chr1-22,X,Y,M as default
             ArrayList<Integer> tmpList=new ArrayList<>();
