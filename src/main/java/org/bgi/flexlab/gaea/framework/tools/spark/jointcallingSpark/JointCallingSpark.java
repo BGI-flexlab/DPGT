@@ -298,6 +298,8 @@ public class JointCallingSpark {
                 indexSamples.add(sampleName);
             }
             multiMapSampleNames.add(indexSamples);
+            if (indexSamples.size()!=0)
+                multiMapSampleNames.add(indexSamples);
         }
         int iter=0;
 

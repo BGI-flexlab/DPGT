@@ -168,6 +168,8 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
         }
         mapSMtagInt=totalSampleSize;
         int mapGvcfListIndex=0;
+        if (mapGvcfList.size()==0)
+            return;
         gvcfHeaderMetaInfo=virtualHeader.getMetaDataInInputOrder();
 //        Set<String> chrs=new TreeSet<>();
 //        for(GenomeLocation l:regions){

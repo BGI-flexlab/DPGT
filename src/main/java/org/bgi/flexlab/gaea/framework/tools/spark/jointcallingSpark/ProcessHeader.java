@@ -57,10 +57,13 @@ public class ProcessHeader implements Function2<Integer,Iterator<String>,Iterato
                 headers.add(vcfHeader);
             }
         }
-        if (headers.size() >= 1) {
-            mergeHeader=new VCFHeader(VCFUtils.smartMergeHeaders(headers, true),sampleNames);
-            headers.clear();
-        }
+//        if (headers.size() >= 1) {
+//            mergeHeader=new VCFHeader(VCFUtils.smartMergeHeaders(headers, true),sampleNames);
+//            headers.clear();
+//        }
+        mergeHeader=new VCFHeader(VCFUtils.smartMergeHeaders(headers, true),sampleNames);
+        headers.clear();
+
         vcfHeaderWriter.close();
         VCFLocalWriter mergedVCFHeaderWriter=new VCFLocalWriter(options.getOutDir()+"/headers/vcfheader"+v1,false,false);
         mergedVCFHeaderWriter.writeHeader(mergeHeader);
