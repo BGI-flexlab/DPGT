@@ -1,3 +1,4 @@
 Manifest-Version: 1.0
-Main-Class: org.bgi.flexlab.gaea.framework.tools.spark.jointcallingSpark.JointCallingSpark
+Main-Class: org.bgi.flexlab.gaea.framework.tools.spark.jointcallingSpark
+ .JointCallingSpark
 

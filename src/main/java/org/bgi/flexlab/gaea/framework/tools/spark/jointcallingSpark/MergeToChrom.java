@@ -15,10 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
 public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Iterator<String>> {
 //    private final String[] args;
@@ -35,9 +32,19 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
 
         ArrayList<String> r=new ArrayList<>();
         r.add("done");
-        if(cycle.intValue()<=integer.intValue()){
-            return r.iterator();
+
+        if (dBC.options.getTargetRegion() != null) {
+            if (!Objects.equals(cycle, integer)) {
+                return r.iterator();
+            }
+        } else {
+            if (cycle <= integer) {
+                return r.iterator();
+            }
         }
+//        if(cycle <= integer){
+//            return r.iterator();
+//        }
         Logger logger = LoggerFactory.getLogger(MergeToChrom.class);
 
         String chr="";

@@ -24,6 +24,10 @@ public class ChromosomeUtils {
 		}else {
 			chrName ="chr" + chrName.substring(3);
 		}
+//		chrName = chrName.toLowerCase();
+//		if(!chrName.startsWith("chr")) {
+//			chrName = "chr" + chrName;
+//		}
 		return chrName;
 	}
 
