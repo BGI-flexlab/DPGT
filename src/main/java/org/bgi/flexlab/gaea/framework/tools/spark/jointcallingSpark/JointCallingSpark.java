@@ -335,7 +335,7 @@ public class JointCallingSpark {
             contigIdx = chrIndex.get(targetRegion.getContig());
             Long len = accumulateLength.get(contigIdx);
             region.setStart(len+targetRegion.getStart());
-            if(targetRegion.getEnd()+targetRegion.getStart()>step){
+            if(targetRegion.getEnd()-targetRegion.getStart()>step){
                 region.setEnd(region.getStart()+step);
             }else{
                 region.setEnd(len+targetRegion.getEnd());
