@@ -520,7 +520,7 @@ public class JointCallingSpark {
         }
         //create files of each contains whole chromosome data
         if (options.getTargetRegion() != null){
-            iter = contigIdx;
+            iter = contigIdx+1;
         }
         if(options.isMergeChrom()){
             //merge chr1-22,X,Y,M as default

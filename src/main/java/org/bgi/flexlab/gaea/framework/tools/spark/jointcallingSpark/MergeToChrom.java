@@ -34,7 +34,7 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
         r.add("done");
 
         if (dBC.options.getTargetRegion() != null) {
-            if (!Objects.equals(cycle, integer)) {
+            if (cycle-integer!=1) {
                 return r.iterator();
             }
         } else {
