@@ -519,9 +519,7 @@ public class JointCallingSpark {
             logger.info("current total variants:\t"+totalVariantsNum.value());
         }
         //create files of each contains whole chromosome data
-        if (options.getTargetRegion() != null){
-            iter = contigIdx+1;
-        }
+
         if(options.isMergeChrom()){
             //merge chr1-22,X,Y,M as default
             ArrayList<Integer> tmpList=new ArrayList<>();
@@ -529,7 +527,7 @@ public class JointCallingSpark {
                 tmpList.add(i);
             }
             JavaRDD<Integer> nonsenseRDD2=sc.parallelize(tmpList,26);
-            nonsenseRDD2.mapPartitionsWithIndex(new MergeToChrom(iter,dBC),true).collect();
+            nonsenseRDD2.mapPartitionsWithIndex(new MergeToChrom(iter,contigIdx,dBC),true).collect();
         }
         sc.stop();
     }
