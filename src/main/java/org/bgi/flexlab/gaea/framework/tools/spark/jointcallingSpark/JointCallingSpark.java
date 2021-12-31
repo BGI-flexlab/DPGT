@@ -27,7 +27,6 @@ import java.util.*;
 public class JointCallingSpark {
     private final static String INPUT_ORDER = "input.name.order";
     private final static String INPUT_LIST = "input.gvcf.list";// added by gc
-    private final static String Window_File = "window.file.path";// window file path
     private static final Logger logger = LoggerFactory.getLogger(JointCallingSpark.class);
     private static final LinkedHashMap<String, Integer> chrIndex=new LinkedHashMap<>();
     private static GenomeLocation parseRegionFromString(String targetRegion) {
@@ -217,37 +216,6 @@ public class JointCallingSpark {
             chrIndex.put(line.getID(),line.getContigIndex());
         }
 
-        //创建窗口文件
-        String win_out_file = options.getOutDir() + "/windows.bed";
-        // command
-        if (win_out_file.startsWith("file://")) {
-            win_out_file = win_out_file.substring(7);
-        }
-        File winOutFile = new File(win_out_file);
-        if (!winOutFile.exists()) {
-            winOutFile.createNewFile();
-        }
-        FileWriter win_out = new FileWriter(winOutFile); // output stream ready for write
-        int window_size = options.getWindowsSize();
-        for (Map.Entry<Integer, String> entry : contigs.entrySet()) {
-            String chr = entry.getValue();
-            int contigLength = header.getSequenceDictionary().getSequence(chr).getSequenceLength();
-            int start = 1;
-            int end = -1;
-            while (true) {
-                end = start + window_size - 1;
-                if (end > contigLength) {
-                    end = contigLength;
-                }
-                String write_line = chr + "\t" + start + "\t" + end + "\n";
-                win_out.write(write_line);
-                start += window_size;
-                if (start > contigLength) {
-                    break;
-                }
-            }
-        }
-        win_out.close();
         HashMap<String,String> confMap=new HashMap<>();
         confMap.put(GaeaVCFOutputFormat.OUT_PATH_PROP, options.getOutDir() + "/"+HEADER_DEFAULT_PATH);
         confMap.put(MERGER_HEADER_INFO, options.getOutDir()+"/"+MERGER_HEADER_INFO);
@@ -272,8 +240,6 @@ public class JointCallingSpark {
         hadoop_conf.set(INPUT_LIST, sortedInputGvcfList);
         confMap.put(INPUT_LIST, sortedInputGvcfList);
         // create windows bed file based on window size
-        hadoop_conf.set(Window_File, options.getOutDir() + "/windows.bed");
-        confMap.put(Window_File, options.getOutDir() + "/windows.bed");
         vVcfPath=options.getOutDir()+"/virtual.vcf";
         logger.warn("after get Header");
 

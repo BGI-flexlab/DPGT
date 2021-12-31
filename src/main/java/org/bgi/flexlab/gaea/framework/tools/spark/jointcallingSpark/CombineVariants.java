@@ -240,14 +240,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
 
         logger.warn("setup done");
 
-        //与map的map功能类似
-        String winFilePath=hadoop_conf.get(DriverBC.Window_File);
-        if(winFilePath.startsWith("file://")) {
-            winFilePath=winFilePath.substring(7);
-        }
-
         //method 3, merge code from MapperHuge
-        BufferedReader win_reader=new BufferedReader(new FileReader(winFilePath));
         String last_contig="";
         ChromosomeInformationShare ref=null;
         BufferedReader bp_reader=new BufferedReader(new FileReader(bpPath));
@@ -574,7 +567,6 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
             }
             samplesIt.clear();
         }
-        win_reader.close();
 
         outWriter.close();
         File idxFile=new File(oneOutFile+".idx");
