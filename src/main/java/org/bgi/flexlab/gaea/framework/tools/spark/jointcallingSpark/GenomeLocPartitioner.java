@@ -1,7 +1,6 @@
 package org.bgi.flexlab.gaea.framework.tools.spark.jointcallingSpark;
 
 import org.apache.spark.Partitioner;
-import org.bgi.flexlab.gaea.data.structure.location.GenomeLocation;
 
 public class GenomeLocPartitioner extends Partitioner {
     public int partitions;

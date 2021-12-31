@@ -386,7 +386,7 @@ public class JointCallingSpark {
                     break;
                 }
             }
-            JavaPairRDD<GenomeLongRegion,Integer> variantsRegion = sortedGvcfSamples.flatMapToPair(new ProcessVariantLocus(region,regions,dBC));
+            JavaPairRDD<GenomeLongRegion,Integer> variantsRegion = sortedGvcfSamples.flatMapToPair(new ProcessVariantLocus(regions,dBC));
             //分区
             String outputBP=options.getOutDir()+"/bps."+String.valueOf(iter);
             File bpDir=new File(outputBP);
@@ -472,14 +472,14 @@ public class JointCallingSpark {
             if(!combineOutLocalFile.exists()){
                 combineOutLocalFile.mkdirs();
                 if(doGenotype) {
-                    sortedGvcfSamples.foreachPartition(new CombineVariants(region, regions, mergedAllBPs, confMap, dBC, iter, bpPartition));
+                    sortedGvcfSamples.foreachPartition(new CombineVariants(regions, mergedAllBPs, confMap, dBC, iter, bpPartition));
                 }
             }else{
                 if(!combineOutLocalFile.isDirectory()){
                     combineOutLocalFile.delete();
                     combineOutLocalFile.mkdirs();
                     if(doGenotype) {
-                        sortedGvcfSamples.foreachPartition(new CombineVariants(region, regions, mergedAllBPs, confMap, dBC, iter, bpPartition));
+                        sortedGvcfSamples.foreachPartition(new CombineVariants(regions, mergedAllBPs, confMap, dBC, iter, bpPartition));
                     }
                 }
             }
@@ -489,7 +489,7 @@ public class JointCallingSpark {
             }
             JavaRDD<String> nonsenseRDD=sc.parallelize(tmpStr,options.getReducerNumber());
             if(doGenotype) {
-                JavaRDD<String> variantsNum = nonsenseRDD.mapPartitionsWithIndex(new ParseCombineAndGenotypeGVCFs(region, regions, args, mergedAllBPs, confMap, dBC, iter, bpPartition,totalVariantsNum), true);
+                JavaRDD<String> variantsNum = nonsenseRDD.mapPartitionsWithIndex(new ParseCombineAndGenotypeGVCFs(region, regions, mergedAllBPs, confMap, dBC, iter, bpPartition,totalVariantsNum), true);
                 variantsNum.collect();
             }
 

@@ -35,19 +35,17 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 	private int num_mapper = 100;//N
 	private boolean mergeChrom=false;//c
 	private boolean keepCombine=false;//z
-//	private String tmpOut=null;//t
 	private String output = null;//o
 	private String reference = null;//r
 	private String dbsnp = null;//k
-	private String MAGIC_HEADER_LINE = VCFCodec.VCF4_MAGIC_HEADER;//F
 
 	private long regionSize=100000000;//W
 
 	private double snpHeterozygosity = 1e-3;//b
 	private double indelHeterozygosity = 1.0/8000;//B
 
-	private List<String> input = new ArrayList<String>();//i
-	private List<Double> inputPrior = new ArrayList<Double>();//p
+	private final List<String> input = new ArrayList<>();//i
+	private final List<Double> inputPrior = new ArrayList<>();//p
 	private OutputMode outputMode = OutputMode.EMIT_VARIANTS_ONLY;//O
 	private GenotypingOutputMode genotypeMode = GenotypingOutputMode.DISCOVERY;//G
 
@@ -70,9 +68,7 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 		addOption("b","hets",true,"Heterozygosity value used to compute prior likelihoods for any locus");
 		addOption("B","indel_hets",true,"Heterozygosity for indel calling");
 		addOption("C","sample_ploidy",true,"Ploidy (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy).");
-		//addOption("F", "vcfformat", true, "input vcf format version");
 		addOption("G", "gt_mode",true,"Specifies how to determine the alternate alleles to use for genotyping(DISCOVERY or GENOTYPE_GIVEN_ALLELES)");
-		//addOption("i", "input", true, "a gvcf or a gvcf list for input", true);
 		addOption("i", "input", true, "a gvcf list for input", true);
 		addOption("I","include_non_variant",false,"Include loci found to be non-variant after genotyping");
 		addOption("j","heterozygosity_stdev",true,"Standard deviation of eterozygosity for SNP and indel calling");
@@ -124,7 +120,6 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 		
 		try {
 			inputList=getOptionValue("i",null);
-			//parseInput( getOptionValue("i",null));
 			parseInput(inputList);
 		} catch (IOException e) {
 			throw new UserException(e.toString());
@@ -141,7 +136,6 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 		this.num_reducer = getOptionIntValue("n",100);
 		this.mergeChrom=getOptionBooleanValue("c",false);
 		this.keepCombine=getOptionBooleanValue("z",false);
-//		this.tmpOut=getOptionValue("t",null);
 		this.output = getOptionValue("o",null);
 		this.reference = getOptionValue("r",null);
 		this.dbsnp = getOptionValue("k",null);
@@ -216,6 +210,7 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 			return;
 		}
 
+		String MAGIC_HEADER_LINE = VCFCodec.VCF4_MAGIC_HEADER;
 		boolean isvcf = AbstractVCFLoader.isVCFStream(inFS.open(path), MAGIC_HEADER_LINE);
 
 		if(isvcf){
@@ -276,19 +271,14 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 	public int getWindowsSize(){
 		return this.windows_size;
 	}
-//	public String getTmpOut() {
-//		return this.tmpOut;
-//	}
+
 	public String getOutput(){
 		if(output.endsWith("/"))
 			return this.output+"vcf";
 		else
 			return this.output+"/vcf";
 	}
-	//added by gc
-//	public String getWinFile() {
-//		return this.winFile;
-//	}
+
 	public String getOutDir(){
 		if(this.output.startsWith("file://")){
 			String value=this.output.substring(7);
@@ -297,14 +287,10 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 			return this.output;
 		}
 	}
-	public List<String> getInputStringList(){
-		return this.input;
-	}
-	
+
 	public String getReference(){
 		if(!this.reference.startsWith("file://")){
-			String value="file://"+this.reference;
-			return value;
+			return "file://"+ this.reference;
 		}else {
 			return this.reference;
 		}
@@ -312,8 +298,7 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 	
 	public String getDBSnp(){
 		if(this.dbsnp.startsWith("file://")){
-			String value=this.dbsnp.substring(7);
-			return value;
+			return this.dbsnp.substring(7);
 		}else {
 			return this.dbsnp;
 		}
@@ -375,15 +360,8 @@ public class JointCallingSparkOptions extends JointCallingOptions implements Had
 		return mergeChrom;
 	}
 
-	public void setMergeChrom(boolean mergeChrom) {
-		this.mergeChrom = mergeChrom;
-	}
-
 	public boolean isKeepCombine() {
 		return keepCombine;
 	}
 
-	public void setKeepCombine(boolean keepCombine) {
-		this.keepCombine = keepCombine;
-	}
 }

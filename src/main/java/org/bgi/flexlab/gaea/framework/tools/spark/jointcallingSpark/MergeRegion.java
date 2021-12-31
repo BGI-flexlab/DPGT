@@ -1,9 +1,6 @@
 package org.bgi.flexlab.gaea.framework.tools.spark.jointcallingSpark;
 
 import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
-import org.bgi.flexlab.gaea.data.structure.location.GenomeLocation;
-import scala.Tuple2;
 
 import java.util.ArrayList;
 import java.util.Iterator;

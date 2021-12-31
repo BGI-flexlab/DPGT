@@ -1,4 +1,3 @@
-
 package org.bgi.flexlab.gaea.framework.tools.spark.jointcallingSpark;
 
 import htsjdk.samtools.seekablestream.SeekableFileStream;
@@ -8,7 +7,6 @@ import htsjdk.samtools.util.BlockCompressedOutputStream;
 import htsjdk.variant.variantcontext.CommonInfo;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
-import htsjdk.variant.vcf.VCFContigHeaderLine;
 import htsjdk.variant.vcf.VCFEncoder;
 import htsjdk.variant.vcf.VCFHeader;
 import org.apache.hadoop.conf.Configuration;
@@ -37,33 +35,19 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class ParseCombineAndGenotypeGVCFs implements Function2<Integer,Iterator<String>,Iterator<String>> {
-    private HashMap<Integer, String> contigs = null;
-    private JointCallingEngine engine = null;
-//    private HashMap<String,Integer> chrIndexs = new HashMap<>();
-    private GenomeLocationParser parser = null;
-    private ReferenceShare genomeShare = null;
-    private DbsnpShare dbsnpShare = null;
-    private VCFLocalLoader loader = null;
-    private VariantRegionFilter filter = null;
-    private VCFHeader header = null;
-    private VCFHeader header2=null;
     private final MultipleVCFHeaderForJointCalling headers = new MultipleVCFHeaderForJointCalling();
-    private VCFEncoder vcfEncoder=null;
-private String winLine=null;
-    private GenomeLongRegion region=null;
+    private final GenomeLongRegion region;
     private final SimpleDateFormat formatter = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss:SSS");
-    private HashMap<String, String> confMap=new HashMap<>();
+    private final HashMap<String, String> confMap;
     private final String bpFile;
-    private final String[] args;
     private final DriverBC dBC;
-    private ArrayList<GenomeLocation> regions=new ArrayList<>();
+    private final ArrayList<GenomeLocation> regions;
     private final int cycleIter;
     private final ArrayList<Long> bpPartition=new ArrayList<>();
     private final LongAccumulator totalVariantsNum;
-    public ParseCombineAndGenotypeGVCFs(GenomeLongRegion region, ArrayList<GenomeLocation> regions, String[] args, String outputBP, HashMap<String, String> confMap,
+    public ParseCombineAndGenotypeGVCFs(GenomeLongRegion region, ArrayList<GenomeLocation> regions, String outputBP, HashMap<String, String> confMap,
                                         Broadcast<DriverBC> dBC, int cycleIter, ArrayList<Long> bpPartition,
                                         LongAccumulator totalVariantsNum) {
-        this.args=args;
         this.dBC=dBC.value();
         this.cycleIter=cycleIter;
         this.confMap=confMap;
@@ -73,14 +57,13 @@ private String winLine=null;
         this.totalVariantsNum=totalVariantsNum;
         this.bpPartition.addAll(bpPartition);
     }
-    class VcComp implements Comparator<VariantContext>,Serializable{
+    static class VcComp implements Comparator<VariantContext>,Serializable{
 
         @Override public int compare(VariantContext o1, VariantContext o2) {
             return o1.getStart()-o2.getStart();
         }
     }
     private final Comparator<VariantContext> comparator4 = new VcComp();
-    String HEADER_DEFAULT_PATH = "vcfheader";
     private final String MERGER_HEADER_INFO = "vcfheaderinfo";
     @Override public Iterator<String> call(Integer index,Iterator<String> stringIterator) throws IOException {
         Logger log= LoggerFactory.getLogger(ParseCombineAndGenotypeGVCFs.class);
@@ -88,33 +71,28 @@ private String winLine=null;
         for(String k:confMap.keySet()){
             hadoop_conf.set(k,confMap.get(k));
         }
-        contigs = new HashMap<>();
         System.out.println(formatter.format(new Date())+"\tbefore readHeader");
         SeekableStream in = new SeekableFileStream(new File(dBC.outputDir+"/vcfheader"));
-        header = VCFHeaderReader.readHeaderFrom(in);
+        VCFHeader header = VCFHeaderReader.readHeaderFrom(in);
         System.out.println(formatter.format(new Date())+"\tafter readHeader");
         in.close();
         if(header == null)
             throw new RuntimeException("header is null !!!");
 
-        for (VCFContigHeaderLine line : header.getContigLines()) {
-            contigs.put(line.getContigIndex(), line.getID());
-        }
-        parser = new GenomeLocationParser(header.getSequenceDictionary());
+        GenomeLocationParser parser = new GenomeLocationParser(header.getSequenceDictionary());
         hadoop_conf.set(GaeaVCFOutputFormat.OUT_PATH_PROP, dBC.options.getOutDir() + "/vcfheader");
         hadoop_conf.set(MERGER_HEADER_INFO, dBC.options.getOutDir()+"/"+MERGER_HEADER_INFO);
-//        headers.readHeaders(hadoop_conf);
         SeekableStream in2=new SeekableFileStream(new File(dBC.outputDir+"/vcfheader"));
         headers.setMergeHeader(VCFHeaderReader.readHeaderFrom(in2));
         headers.setCurrentIndex(dBC.sampleIndex.size());
-        HashMap<Integer, Set<String>> tmpNameHeaders=new HashMap<Integer, Set<String>>();
+        HashMap<Integer, Set<String>> tmpNameHeaders= new HashMap<>();
         for(Map.Entry<String,Integer> kv:dBC.sampleIndex.entrySet()){
             TreeSet<String> samples=new TreeSet<>();
             samples.add(kv.getKey());
             tmpNameHeaders.put(kv.getValue(),samples);
         }
         headers.setNameHeaders(tmpNameHeaders);
-        Integer totalSampleSize=dBC.sampleIndex.size();
+        int totalSampleSize=dBC.sampleIndex.size();
         if(totalSampleSize==0){
             log.error("sample size is 0");
             System.exit(1);
@@ -123,22 +101,22 @@ private String winLine=null;
         if(realSmallWindowSize==0){
             realSmallWindowSize=10;
         }
-        String sampleStr = confMap.get(dBC.INPUT_ORDER);
+        String sampleStr = confMap.get(DriverBC.INPUT_ORDER);
         String[] allSample=sampleStr.split(",");
 
         dBC.pathSample=null;
         System.out.println(formatter.format(new Date())+"\tbefore engine init");
         dBC.options.setS(dBC.options.STANDARD_CONFIDENCE_FOR_CALLING);
         dBC.options.sets(dBC.options.STANDARD_CONFIDENCE_FOR_EMITTING);
-        engine = new JointCallingEngine(dBC.options, parser,header,headers,allSample,dBC.multiMapSampleNames,hadoop_conf);
+        JointCallingEngine engine = new JointCallingEngine(dBC.options, parser, header, headers, allSample, dBC.multiMapSampleNames, hadoop_conf);
         System.out.println(formatter.format(new Date())+"\tafter engine init");
-        genomeShare = new ReferenceShare();
+        ReferenceShare genomeShare = new ReferenceShare();
         genomeShare.loadChromosomeList(dBC.options.getReference());
-        dbsnpShare = new DbsnpShare(dBC.options.getDBSnp(), dBC.options.getReference());
+        DbsnpShare dbsnpShare = new DbsnpShare(dBC.options.getDBSnp(), dBC.options.getReference());
         dbsnpShare.loadChromosomeList(dBC.options.getDBSnp() + VcfIndex.INDEX_SUFFIX);
-        loader = new VCFLocalLoader(dBC.options.getDBSnp());
-        filter = new VariantRegionFilter();
-        header2=engine.getVCFHeader();
+        VCFLocalLoader loader = new VCFLocalLoader(dBC.options.getDBSnp());
+        VariantRegionFilter filter = new VariantRegionFilter();
+        VCFHeader header2 = engine.getVCFHeader();
         if(header2 == null)
             throw new RuntimeException("header is null !!!");
         String mergedHeaderFile=dBC.options.getOutDir()+"/merged.vcfheader";
@@ -149,7 +127,7 @@ private String winLine=null;
             mergedVCFHeaderWriter.close();
         }
         BufferedReader bp_reader=new BufferedReader(new FileReader(bpFile));
-        winLine=bp_reader.readLine();
+        String winLine = bp_reader.readLine();
         System.out.println("reduce setup done");
 
         System.out.println(formatter.format(new Date())+"\treduce start");
@@ -199,13 +177,12 @@ private String winLine=null;
             samplesReader.add(reader);
         }
         dBC.sampleIndex=null;
-        Integer multiMapSampleSize=dBC.multiMapSampleNames.size();
+        int multiMapSampleSize=dBC.multiMapSampleNames.size();
         dBC.multiMapSampleNames=null;
         if(samplesReader.size()!=multiMapSampleSize || samplesCodec.size()!=multiMapSampleSize){
             log.error("code error2\t"+samplesReader.size()+"\t"+multiMapSampleSize);
             System.exit(1);
         }
-        int vcNum=0;
         String outFile=dBC.options.getOutDir()+"/genotype."+cycleIter+"/"+region.getStart()+"_"+region.getEnd()+"."+index+".gz";
         Path outPath=new Path(outFile);
         FileSystem outFs=outPath.getFileSystem(hadoop_conf);
@@ -221,7 +198,7 @@ private String winLine=null;
         for(int i=0;i<multiMapSampleSize;i++){
             readerDone[i]=false;
         }
-        vcfEncoder = new VCFEncoder(header, true, true);
+        VCFEncoder vcfEncoder = new VCFEncoder(header, true, true);
         for(GenomeLocation curRegion:regions) {
             int start = curRegion.getStart();
             String chr = curRegion.getContig();
@@ -245,7 +222,6 @@ private String winLine=null;
             //为了避免每次从头读取winBp，保留bp_reader，使其只读一遍
             System.out.println(formatter.format(new Date()) + "\tbp window before get bps:\t" + winLine);
             LinkedList<VariantContext> regionVcs=new LinkedList<>();
-//            long smallWinStartLong=dBC.accumulateLength.get(chrInx)+start+rangeInEachOutFile*index;
             long smallWinStartLong=regionStart;
             long smallWinEndLong=smallWinStartLong+realSmallWindowSize-1;
             if(smallWinEndLong>regionEnd){
@@ -261,7 +237,6 @@ private String winLine=null;
                 System.exit(1);
             }
             HashMap<Integer,ArrayList<VariantContext>> lastVCs=new HashMap<>();
-            int logIter=0;
             while(smallWinStartLong<=regionEnd){
                 //一个个小窗口开始处理
                 //获取小窗口内的所有变异
@@ -294,7 +269,7 @@ private String winLine=null;
                 if(smallWinStartLong>smallWinEndLong){
                     break;
                 }
-                Integer minWindowSize=dBC.options.getWindowsSize();
+                int minWindowSize=dBC.options.getWindowsSize();
                 if(realSmallWindowSize<100){
                     minWindowSize=100;
                 }
@@ -390,17 +365,12 @@ private String winLine=null;
                                 lastVCs.put(i,tmpVCs);
                             }
                             break;
-                        }else{
-                            continue;
                         }
                     }
                 }
                 regionVcs.sort(comparator4);
-//                if(logIter%5==0) {
-                    System.out.println(formatter.format(new Date()) + "\tcurrent reduce key:\t" + chr + "\t" + chrInx + "\t" + smallWinStartLong + "\t" + smallWinEndLong);
-                    System.out.println(formatter.format(new Date()) + "\tbps size in region:\t" + bps.size());
-//                }
-                logIter++;
+                System.out.println(formatter.format(new Date()) + "\tcurrent reduce key:\t" + chr + "\t" + chrInx + "\t" + smallWinStartLong + "\t" + smallWinEndLong);
+                System.out.println(formatter.format(new Date()) + "\tbps size in region:\t" + bps.size());
                 for(int iter:bps){
                     VariantContext variantContext = engine.variantCallingForSpark(regionVcs.iterator(),
                             parser.createGenomeLocation(chr, iter), genomeShare.getChromosomeInfo(chr));
@@ -411,7 +381,7 @@ private String winLine=null;
                     HashMap<String, Object> maps = new HashMap<>(info.getAttributes());
                     maps.remove("SM");
                     info.setAttributes(maps);
-                    String value=vcfEncoder.encode(variantContext)+"\n";
+                    String value= vcfEncoder.encode(variantContext)+"\n";
                     long vcStart=dBC.accumulateLength.get(dBC.chrIndex.get(variantContext.getContig()))+variantContext.getStart();
                     boolean writeFlag=false;
                     if(index==0){
@@ -426,7 +396,6 @@ private String winLine=null;
                     if(writeFlag) {
                         out.write(value.getBytes());
                         totalVariantsNum.add(1);
-                        vcNum++;
                     }
                     maps.clear();
                     while(regionVcs.size()>0){
@@ -455,14 +424,13 @@ private String winLine=null;
                 regionVcs.clear();
                 bps.clear();
             }
-            if(dbsnps!=null)
-                dbsnps.clear();
+            dbsnps.clear();
         }
         out.close();
         ArrayList<String> totalNum=new ArrayList<>();
         totalNum.add("done"+index);
-        for(int i=0;i<samplesReader.size();i++){
-            samplesReader.get(i).close();
+        for (BlockCompressedInputStream blockCompressedInputStream : samplesReader) {
+            blockCompressedInputStream.close();
         }
         return totalNum.iterator();
     }

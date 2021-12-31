@@ -7,8 +7,6 @@ import htsjdk.tribble.TabixFeatureReader;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.*;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.bgi.flexlab.gaea.data.structure.location.GenomeLocation;
@@ -17,7 +15,6 @@ import org.bgi.flexlab.gaea.data.structure.reference.ChromosomeInformationShare;
 import org.bgi.flexlab.gaea.data.structure.reference.ReferenceShare;
 import org.bgi.flexlab.gaea.data.structure.variant.VariantContextMerger;
 import org.bgi.flexlab.gaea.tools.jointcalling.VariantAnnotatorEngine;
-import org.bgi.flexlab.gaea.tools.jointcalling.genotypegvcfs.annotation.StandardAnnotation;
 import org.bgi.flexlab.gaea.tools.jointcalling.util.GaeaGvcfVariantContextUtils;
 import org.bgi.flexlab.gaea.tools.jointcalling.util.ReferenceConfidenceVariantContextMerger;
 import org.bgi.flexlab.gaea.util.Utils;
@@ -32,22 +29,24 @@ import java.util.*;
 
 
 public class CombineVariants implements VoidFunction<Iterator<String>> {
-    private final GenomeLongRegion gloc;
     private final String bpPath;
-    private final String vVcfPath;
-    private JointCallingSparkOptions options = new JointCallingSparkOptions();
+    private final JointCallingSparkOptions options;
+
+    static {
+        new JointCallingSparkOptions();
+    }
+
     private final static String INPUT_LIST = "input.gvcf.list";
-    private HashMap<String, String> confMap=new HashMap<>();
+    private final HashMap<String, String> confMap;
     private final String outputDir;
     private final Logger logger;
     private VCFEncoder vcfEncoder=null;
     private final DriverBC dBC;
-    private ArrayList<GenomeLocation> regions=new ArrayList<>();
+    private final ArrayList<GenomeLocation> regions;
     private final int cycleIter;
     private final ArrayList<Long> bpPartition=new ArrayList<>();
-    public CombineVariants(GenomeLongRegion region, ArrayList<GenomeLocation> regions,String outputBP, HashMap<String, String> confMap,
-                           Broadcast<DriverBC> dBC,int cycleIter,ArrayList<Long> bpPartition) {
-        gloc=region;
+    public CombineVariants(ArrayList<GenomeLocation> regions, String outputBP, HashMap<String, String> confMap,
+                           Broadcast<DriverBC> dBC, int cycleIter, ArrayList<Long> bpPartition) {
         this.regions=regions;
         bpPath=outputBP;
         this.cycleIter=cycleIter;
@@ -57,12 +56,10 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
         this.outputDir=dBC.value().outputDir;
         this.confMap.put(INPUT_LIST, options.getInputList());
         logger = LoggerFactory.getLogger(CombineVariants.class);
-        this.vVcfPath=dBC.value().vVcfPath;
         this.bpPartition.addAll(bpPartition);
 
     }
-    class VcComp implements Comparator<VariantContext>,Serializable{
-
+    static class VcComp implements Comparator<VariantContext>,Serializable{
         @Override public int compare(VariantContext o1, VariantContext o2) {
             return o1.getStart()-o2.getStart();
         }
@@ -71,7 +68,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
     @Override public void call(Iterator<String> StringIterator) throws Exception {
         //与map的setup功能类似
         dBC.multiMapSampleNames=null;
-        Configuration conf=new Configuration();
+        new Configuration();
         SeekableStream in2 = new SeekableFileStream(new File(outputDir+"/vcfheader"));
         VCFHeader mergedHeader = VCFHeaderReader.readHeaderFrom(in2);
         if(mergedHeader==null){
@@ -83,29 +80,27 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
         for(String k:confMap.keySet()){
             hadoop_conf.set(k,confMap.get(k));
         }
-        ArrayList<VariantContext> vcList=new ArrayList<>();
         Set<String> mapSamplePath=new TreeSet<>();
-        Set<VCFHeaderLine> gvcfHeaderMetaInfo=null;
-        HashMap<String, Integer> sampleIndex=new HashMap();
+        Set<VCFHeaderLine> gvcfHeaderMetaInfo;
+        HashMap<String, Integer> sampleIndex=new HashMap<>();
         String sampleIndexFile=options.getOutDir()+"/vcfheaderinfo";
         File sampleIndexFilePath=new File(sampleIndexFile);
         BufferedReader indexReader = new BufferedReader(new FileReader(sampleIndexFilePath));
         String indexLine;
         Logger logger= LoggerFactory.getLogger(CombineVariants.class);
-        Map<String,String> pathSample=new HashMap();
-        ArrayList<String> sampleNames=new ArrayList<String>();
-        Integer mapSMtagInt=0;
+        Map<String,String> pathSample=new HashMap<>();
+        ArrayList<String> sampleNames= new ArrayList<>();
+        Integer mapSMtagInt;
         int totalSampleSize=0;
         VCFHeaderVersion version = null;
 
-        ArrayList<String> mapGvcfList=new ArrayList<String>();
+        ArrayList<String> mapGvcfList= new ArrayList<>();
         while(StringIterator.hasNext()) {
             String gvcfPath = StringIterator.next();
             mapGvcfList.add(gvcfPath);
         }
 
         for(String gvcfPath:mapGvcfList) {
-//            Path path2=new Path(gvcfPath);
             String[] eles=gvcfPath.split("/");
             mapSamplePath.add(eles[eles.length-1]);
         }
@@ -131,21 +126,19 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
             samplesInMap.add(pathSample.get(samplePath));
         }
         indexReader.close();
-        HashMap<String,Integer> chrIndexs = null;
-        VCFHeader virtualHeader = null;
-        VCFHeader mapMergedHeader=null;
-        String mapSMtag=null;
-        Map<String, Integer> contigDict = new HashMap<String, Integer>();
-        GenomeLocationParser parser = null;
-        ReferenceShare genomeShare = null;
+        HashMap<String,Integer> chrIndexs;
+        VCFHeader virtualHeader;
+        VCFHeader mapMergedHeader;
+        Map<String, Integer> contigDict = new HashMap<>();
+        GenomeLocationParser parser;
+        ReferenceShare genomeShare;
         LazyVCFGenotypesContext.HeaderDataCache vcfHeaderDataCache =
                 new LazyVCFGenotypesContext.HeaderDataCache();
         SimpleDateFormat formatter = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss:SSS");
         VariantAnnotatorEngine annotationEngine=null;
 
-        ArrayList<VariantContext> curSamplesVC=new ArrayList<VariantContext>();
+        ArrayList<VariantContext> curSamplesVC= new ArrayList<>();
 
-        Integer sISize=sampleIndex.size();
         int ii=0;
         ArrayList<TabixFeatureReader> samplesReader=new ArrayList<>();
         SeekableStream in=new SeekableFileStream(new File(options.getOutDir()+"/virtual.vcf"));
@@ -164,7 +157,6 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
         for(String gvcfPath:mapGvcfList){
             String[] eles=gvcfPath.split("/");
             mapSamplePath.add(eles[eles.length-1]);
-            Path path2=new Path(gvcfPath);
             if(!pathSample.containsKey(eles[eles.length-1])) {
                 logger.error("no such path in vcfHeaderInfo");
             }
@@ -206,11 +198,6 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
         sampleIndex.clear();
         dBC.pathSample=null;
         dBC.sampleIndex=null;
-        long rangeInEachOutFile=(gloc.getEnd()-gloc.getStart())/options.getReducerNumber();
-        int minRange=100000;
-        if(rangeInEachOutFile<minRange){
-            rangeInEachOutFile=minRange;
-        }
         String oneOutFile=options.getOutDir()+"/combine."+cycleIter+"/combineFile."+mapSMtagInt;
         File outOutFilePath=new File(oneOutFile);
         if(outOutFilePath.exists()){
@@ -228,18 +215,12 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
 
         }
 
-
         mapMergedHeader=new VCFHeader(gvcfHeaderMetaInfo,sampleNames);
         vcfHeaderDataCache.setHeader(mapMergedHeader);
 
-        mapSMtag= Utils.join("_",mapMergedHeader.getSampleNamesInOrder());
-        if(mapMergedHeader.getSampleNamesInOrder().size()==1) {
-            mapSMtag=mapSMtag+"_";
-        }
-        if(virtualHeader == null)
-            throw new RuntimeException("header is null !!!");
+        Utils.join("_", mapMergedHeader.getSampleNamesInOrder());
+        mapMergedHeader.getSampleNamesInOrder();
         logger.warn("after get merged header");
-//        contigs = new HashMap<>();
         chrIndexs = new HashMap<>();
         for (VCFContigHeaderLine line : virtualHeader.getContigLines()) {
             chrIndexs.put(line.getID(), line.getContigIndex());
@@ -260,42 +241,33 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
         logger.warn("setup done");
 
         //与map的map功能类似
-        String winFilePath=hadoop_conf.get(dBC.Window_File);
+        String winFilePath=hadoop_conf.get(DriverBC.Window_File);
         if(winFilePath.startsWith("file://")) {
             winFilePath=winFilePath.substring(7);
         }
-        String win_line;
-        Path firstPath=new Path(mapGvcfList.get(0));
-        FileSystem gvcf_fs=firstPath.getFileSystem(hadoop_conf);
 
         //method 3, merge code from MapperHuge
         BufferedReader win_reader=new BufferedReader(new FileReader(winFilePath));
         String last_contig="";
         ChromosomeInformationShare ref=null;
-        Path pBPpath=new Path(bpPath);
         BufferedReader bp_reader=new BufferedReader(new FileReader(bpPath));
         String bpRegion=bp_reader.readLine();
         if(bpRegion==null){
             return;
         }
         String[] bpeles=bpRegion.split("\t");
-        Long bpstart=Long.parseLong(bpeles[0]);
-        Long bpend=Long.parseLong(bpeles[1]);
+        long bpstart=Long.parseLong(bpeles[0]);
+        long bpend=Long.parseLong(bpeles[1]);
         ArrayList<Integer> bpStarts=new ArrayList<>();
         ArrayList<Integer> bpEnds=new ArrayList<>();
         boolean bpFileEnd=false;
-        boolean logOut=false;
+        boolean logOut;
         Integer lastLogPoint=0;
-        Integer last_end=0;
-        Integer last_pos=0;
-        Long last_bp_start=-1L;
-        Long last_bp_end=-1L;
-        ArrayList<Iterator<VariantContext>> sampleVCsIter=new ArrayList<>();
+        int last_end=0;
+        int last_pos;
 
 
         ArrayList<Iterator<VariantContext>> samplesIt=new ArrayList<>();
-        ArrayList<ArrayList<VariantContext>> samplesVcList=new ArrayList<>();
-        int[] VcIndex=new int[mapGvcfList.size()];
         TreeMap<Integer,Long> startOffset=new TreeMap<>();
         TreeMap<Integer,Long> endOffset=new TreeMap<>();
         logger.info("region size:\t"+regions.size());
@@ -307,9 +279,9 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
             // start end 为小窗口
             Integer start=curRegion.getStart();
             Integer end=curRegion.getEnd()>start+dBC.options.getWindowsSize()-1?start+dBC.options.getWindowsSize()-1:curRegion.getEnd();
-            Long smallWinStart=dBC.accumulateLength.get(dBC.chrIndex.get(curRegion.getContig()))+start;
-            Long smallWinEnd=dBC.accumulateLength.get(dBC.chrIndex.get(curRegion.getContig()))+end;
-            Long regionEnd=dBC.accumulateLength.get(dBC.chrIndex.get(curRegion.getContig()))+curRegion.getEnd();
+            long smallWinStart=dBC.accumulateLength.get(dBC.chrIndex.get(curRegion.getContig()))+start;
+            long smallWinEnd=dBC.accumulateLength.get(dBC.chrIndex.get(curRegion.getContig()))+end;
+            long regionEnd=dBC.accumulateLength.get(dBC.chrIndex.get(curRegion.getContig()))+curRegion.getEnd();
             for (int i = 0; i != mapGvcfList.size(); i++) {
                 Iterator<VariantContext> curIt = samplesReader.get(i).query(curRegion.getContig(), curRegion.getStart(), curRegion.getEnd());
 
@@ -317,19 +289,12 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                 samplesIt.add(curIt);
 
             }
-            HashMap<Integer, VariantContext> lastVC = new HashMap<>();
-            int testInt = 0;
             while (smallWinEnd <= regionEnd) {
                 Integer curLogPoint = (int) (smallWinStart / 1000000);
-                if (!curLogPoint.equals(lastLogPoint)) {
-                    logOut = true;
-                } else {
-                    logOut = false;
-                }
+                logOut = !curLogPoint.equals(lastLogPoint);
                 lastLogPoint = curLogPoint;
                 if (logOut)
                     System.out.println(formatter.format(new Date()) + "\tprocess region\t" + contig + "\t" + smallWinStart + "\t" + smallWinEnd);
-                String chr = contig;
                 int startPartitionIndex=0;
                 for(int partitionIndex=0;partitionIndex<bpPartition.size();partitionIndex++){
                     if(smallWinStart<bpPartition.get(partitionIndex)){
@@ -380,13 +345,10 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                 if (logOut) {
                     System.out.println(formatter.format(new Date()) + "\tbefore query");
                 }
-                for (int i = 0; i != mapGvcfList.size(); i++) {
-                    String sampleName = sampleNames.get(i);
 
-                }
                 for (int i = 0; i != curSamplesVC.size(); i++) {
                     VariantContext tmpVC = curSamplesVC.get(i);
-                    if (tmpVC.getChr().equals(chr) && tmpVC.getStart() <= end && tmpVC.getEnd() >= start) {
+                    if (tmpVC.getChr().equals(contig) && tmpVC.getStart() <= end && tmpVC.getEnd() >= start) {
                         region_vcs.add(tmpVC);
                         if (tmpVC.getNAlleles() > 2) {
                             for (int tmpPos = tmpVC.getStart(); tmpPos <= tmpVC.getEnd(); tmpPos++) {
@@ -401,15 +363,11 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                         }
                     }
                 }
-                int bpStartsIndex=0;
-                int bpEndsIndex=0;
                 if(bpStarts.size()!=bpEnds.size()){
                     logger.error("code error");
                     System.exit(1);
                 }
                 for (int i = 0; i != mapGvcfList.size(); i++) {
-                    String line = null;
-                    String samplePath = mapGvcfList.get(i);
 
                     String sampleName = sampleNames.get(i);
 //
@@ -419,7 +377,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
 //
                         CommonInfo info = v.getCommonInfo();
                         if (!info.hasAttribute("SM")) info.putAttribute("SM", sampleName);
-                        if (v.getChr().equals(chr)) {
+                        if (v.getChr().equals(contig)) {
                             if (v.getStart() <= end && v.getEnd() >= start) {
                                 while(index<bpStarts.size()) {
                                     if(v.getStart()<=bpEnds.get(index) && v.getEnd()>=bpStarts.get(index)) {
@@ -444,19 +402,13 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                                 }
                             } else if (v.getStart() > end) {
                                 curSamplesVC.add(v);
-//                                lastVC.put(i, v);
                                 break;
-                            } else if (v.getEnd() < start) {
-                                continue;
                             } else {
+                                v.getEnd();
                             }
-                        } else if (contigDict.get(v.getChr()) > contigDict.get(chr)) {
+                        } else if (contigDict.get(v.getChr()) > contigDict.get(contig)) {
                             curSamplesVC.add(v);
-//                            lastVC.put(i, v);
                             break;
-//                        writeToDisk(sampleName,v);
-                        } else {
-                            continue;
                         }
                     }
                 }
@@ -472,8 +424,8 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                 } else {
                     last_pos = start;
                 }
-                ArrayList<Integer> realBreakpointStart = new ArrayList<Integer>();
-                ArrayList<Integer> realBreakpointEnd = new ArrayList<Integer>();
+                ArrayList<Integer> realBreakpointStart = new ArrayList<>();
+                ArrayList<Integer> realBreakpointEnd = new ArrayList<>();
                 int bpIndex = 0;
                 for (Integer pos : end_breakpoints) {
                     boolean whether_keep = false;
@@ -481,18 +433,13 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                         if (last_pos <= bpEnds.get(bpIndex) && pos >= bpStarts.get(bpIndex)) {
                             whether_keep = true;
                             break;
-                        } else if (last_pos > bpEnds.get(bpIndex)) {
-                            continue;
-                        } else if (pos < bpStarts.get(bpIndex)) {
+                        }  else if (pos < bpStarts.get(bpIndex)) {
                             break;
                         }
                     }
                     if (whether_keep) {
                         realBreakpointStart.add(last_pos);
                         realBreakpointEnd.add(pos);
-                        if (pos > end) {
-//                            last_end_breakpoints.add(pos);
-                        }
                     }
                     last_pos = pos + 1;
                 }
@@ -508,7 +455,6 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                 if (!contig.equals(last_contig)) {
                     last_end = 0;
                 }
-                int tmpIter = 0;
                 if (logOut) {
                     System.out.println(formatter.format(new Date()) + "\tbefore merge");
                 }
@@ -523,12 +469,10 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                         continue;
                     }
                     List<VariantContext> stoppedVCs = new ArrayList<>();
-                    //System.out.println(region_vcs.size());
                     for (int j = 0; j < region_vcs.size(); j++) {
                         final VariantContext vc = region_vcs.get(j);
                         //the VC for the previous state will be stopped if its position is previous to the current position or it we've moved to a new contig
                         if (vc.getStart() <= pos) {
-
                             if (vc.getEnd() < posStart) {
                                 region_vcs.remove(j);
                                 j--;
@@ -537,7 +481,6 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                             }
                             // if it was ending anyways, then remove it from the future state
                             if (vc.getEnd() == pos) {
-                                //region_vcws.samples.removeAll(vc.getSampleNames());
                                 if (j >= 0) {
                                     region_vcs.remove(j);
                                     j--;
@@ -549,16 +492,15 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                     }
                     if (!stoppedVCs.isEmpty()) {
 
-                        final GenomeLocation gLoc = parser.createGenomeLocation(chr, last_end);
+                        final GenomeLocation gLoc = parser.createGenomeLocation(contig, last_end);
                         final VariantContext mergedVC;
                         if(posStart>=dBC.accumulateLength.get(gLoc.getContigIndex()+1)){
                             break;
                         }
+                        assert ref != null;
                         final byte refBase = (byte) ref.getBase(gLoc.getStart());
-                        int curStart = last_end + 1;
                         if (containsTrueAltAllele(stoppedVCs)) {
-                            mergedVC = ReferenceConfidenceVariantContextMerger.mapMerge(stoppedVCs, parser.createGenomeLocation(chr, pos), (byte) ref.getBase(posStart - 1), false, false, annotationEngine);
-                            tmpIter++;
+                            mergedVC = ReferenceConfidenceVariantContextMerger.mapMerge(stoppedVCs, parser.createGenomeLocation(contig, pos), (byte) ref.getBase(posStart - 1), false, false, annotationEngine);
 
                         } else {
                             mergedVC = referenceBlockMerge(stoppedVCs, gLoc, refBase, pos);
@@ -622,7 +564,6 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                 }
                 last_contig = contig;
 
-                end_breakpoints.clear();
                 start = end + 1;
                 end = curRegion.getEnd() > end + dBC.options.getWindowsSize() ? end + dBC.options.getWindowsSize() : curRegion.getEnd();
                 smallWinStart=dBC.accumulateLength.get(dBC.chrIndex.get(curRegion.getContig()))+start;
@@ -684,34 +625,5 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
         }
         return new VariantContextBuilder("", first.getChr(), start, end, Arrays.asList(refAllele, VariantContextMerger.NON_REF_SYMBOLIC_ALLELE)).attributes(attrs).genotypes(genotypes).make();
     }
-    private VCFHeader getVCFHeaderFromInput(Set<VCFHeader> headers) {
-        Set<String> samples = getSampleList(headers);
-        Set<VCFHeaderLine> headerLines = VCFUtils.smartMergeHeaders(headers, true);
-        VCFHeader vcfHeader = new VCFHeader(headerLines, samples);
 
-        headers.clear();
-        samples.clear();
-        headerLines.clear();
-
-        return vcfHeader;
-    }
-    private Set<String> getSampleList(Set<VCFHeader> headers){
-        Set<String> samples = new TreeSet<String>();
-        for(VCFHeader header : headers){
-            for ( String sample : header.getGenotypeSamples() ) {
-                samples.add(GaeaGvcfVariantContextUtils.mergedSampleName(null, sample, false));
-            }
-        }
-        return samples;
-    }
-    private void writeToDisk(String s, VariantContext vc) throws IOException {
-        //写到哪里
-        FileWriter w=new FileWriter((new File(vVcfPath)).getParent()+"/"+s+".mr2.lastVC");
-        w.write(s);
-        w.write("\n");
-        w.write(vcfEncoder.encode(vc));
-        w.write("\n");
-        w.close();
-        //最后在driver中要清理
-    }
 }

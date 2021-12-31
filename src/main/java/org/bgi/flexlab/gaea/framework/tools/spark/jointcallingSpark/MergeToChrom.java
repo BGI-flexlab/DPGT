@@ -18,7 +18,6 @@ import java.io.*;
 import java.util.*;
 
 public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Iterator<String>> {
-//    private final String[] args;
     private final Integer cycle;
     private final DriverBC dBC;
     private final Integer contigStart;
@@ -31,11 +30,8 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
 
     @Override public Iterator<String> call(Integer integer, Iterator<Integer> integerIterator) throws Exception {
         //write to outDir/chr*.vcf.gz
-
         ArrayList<String> r=new ArrayList<>();
         r.add("done");
-
-
 
         if (dBC.options.getTargetRegion() != null && !Objects.equals(integer, contigStart))
             return  r.iterator();
@@ -75,7 +71,6 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
                 logger.error("no header file");
                 System.exit(1);
             }
-            long start = 1;
             String firstFile = "";
             ArrayList<String> justCopyList = new ArrayList<>();
             String lastFile = "";
@@ -101,7 +96,7 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
                         continue;
                     }
                     log.info("current pos:\t" + prefix);
-                    if (Long.valueOf(poses[1]) < dBC.accumulateLength.get(integer)) {
+                    if (Long.parseLong(poses[1]) < dBC.accumulateLength.get(integer)) {
                         continue;
                     }
                     for (int j = 0; j < dBC.options.getReducerNumber(); j++) {
@@ -177,15 +172,13 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
                         }
                     }
                     if (integer == 25) {
-                        if (dBC.chrIndex.get(curChr) >= integer.intValue()) {
+                        if (dBC.chrIndex.get(curChr) >= integer) {
                             out.write((line1 + "\n").getBytes());
-                        } else {
-                            continue;
                         }
                     } else {
                         if (dBC.chrIndex.get(curChr) == integer.intValue()) {
                             out.write((line1 + "\n").getBytes());
-                        } else if (dBC.chrIndex.get(curChr) < integer.intValue()) {
+                        } else if (dBC.chrIndex.get(curChr) < integer) {
                             continue;
                         } else {
                             break;
@@ -216,7 +209,7 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
                     }
                     if (dBC.chrIndex.get(curChr) == integer.intValue()) {
                         out.write((line1 + "\n").getBytes());
-                    } else if (dBC.chrIndex.get(curChr) < integer.intValue()) {
+                    } else if (dBC.chrIndex.get(curChr) < integer) {
                         continue;
                     } else {
                         break;
@@ -226,7 +219,6 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
             }
             out.close();
         }
-        //create tbi index
 
         //create tbi index
         log.info("creating tbi index for:",outputName);

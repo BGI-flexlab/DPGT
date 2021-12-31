@@ -27,7 +27,6 @@ public class GenomeLongRegion implements Serializable {
         this.start = start;
     }
     public String toString(){
-        String line=start+"\t"+end;
-        return line;
+        return start+"\t"+end;
     }
 }
