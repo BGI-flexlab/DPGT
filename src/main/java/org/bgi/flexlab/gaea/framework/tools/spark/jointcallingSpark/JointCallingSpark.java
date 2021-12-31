@@ -297,7 +297,9 @@ public class JointCallingSpark {
                 String sampleName = pathSample.get(rName);
                 indexSamples.add(sampleName);
             }
-            multiMapSampleNames.add(indexSamples);
+//            multiMapSampleNames.add(indexSamples);
+            if (indexSamples.size()!=0)
+                multiMapSampleNames.add(indexSamples);
         }
         int iter=0;
 
@@ -333,7 +335,7 @@ public class JointCallingSpark {
             contigIdx = chrIndex.get(targetRegion.getContig());
             Long len = accumulateLength.get(contigIdx);
             region.setStart(len+targetRegion.getStart());
-            if(targetRegion.getEnd()+targetRegion.getStart()>step){
+            if(targetRegion.getEnd()-targetRegion.getStart()>step){
                 region.setEnd(region.getStart()+step);
             }else{
                 region.setEnd(len+targetRegion.getEnd());
@@ -517,9 +519,9 @@ public class JointCallingSpark {
             logger.info("current total variants:\t"+totalVariantsNum.value());
         }
         //create files of each contains whole chromosome data
-        if (options.getTargetRegion() != null){
-            iter = contigIdx;
-        }
+//        if (options.getTargetRegion() != null){
+//            iter = contigIdx+1;
+//        }
         if(options.isMergeChrom()){
             //merge chr1-22,X,Y,M as default
             ArrayList<Integer> tmpList=new ArrayList<>();
@@ -527,7 +529,7 @@ public class JointCallingSpark {
                 tmpList.add(i);
             }
             JavaRDD<Integer> nonsenseRDD2=sc.parallelize(tmpList,26);
-            nonsenseRDD2.mapPartitionsWithIndex(new MergeToChrom(iter,dBC),true).collect();
+            nonsenseRDD2.mapPartitionsWithIndex(new MergeToChrom(iter,contigIdx,dBC),true).collect();
         }
         sc.stop();
     }

@@ -21,10 +21,12 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
 //    private final String[] args;
     private final Integer cycle;
     private final DriverBC dBC;
+    private final Integer contigStart;
     final Logger log= LoggerFactory.getLogger(MergeToChrom.class);
-    public MergeToChrom(Integer iter, Broadcast<DriverBC> dBC) {
+    public MergeToChrom(Integer iter, Integer contigStart,Broadcast<DriverBC> dBC) {
         this.dBC = dBC.value();
         this.cycle=iter;
+        this.contigStart =contigStart;
     }
 
     @Override public Iterator<String> call(Integer integer, Iterator<Integer> integerIterator) throws Exception {
@@ -33,18 +35,23 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
         ArrayList<String> r=new ArrayList<>();
         r.add("done");
 
-        if (dBC.options.getTargetRegion() != null) {
-            if (!Objects.equals(cycle, integer)) {
-                return r.iterator();
-            }
-        } else {
-            if (cycle <= integer) {
-                return r.iterator();
-            }
-        }
+//        if (dBC.options.getTargetRegion() != null) {
+//            if (cycle-integer!=1) {
+//                return r.iterator();
+//            }
+//
+//        } else {
+//            if (cycle <= integer) {
+//                return r.iterator();
+//            }
+//        }
 //        if(cycle <= integer){
 //            return r.iterator();
 //        }
+
+        if (dBC.options.getTargetRegion() != null && !Objects.equals(integer, contigStart))
+            return  r.iterator();
+
         Logger logger = LoggerFactory.getLogger(MergeToChrom.class);
 
         String chr="";
