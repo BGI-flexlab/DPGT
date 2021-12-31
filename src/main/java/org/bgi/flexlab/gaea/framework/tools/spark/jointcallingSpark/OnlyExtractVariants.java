@@ -80,8 +80,6 @@ public class OnlyExtractVariants implements PairFlatMapFunction<String, GenomeLo
             }
         }
         List<Tuple2<GenomeLocation,Integer>> variantsList = new ArrayList<>();
-//        VCFFileReader fileReader=dBC.sampleReader.get(s);
-//        Iterator<VariantContext> vcsAtRegion=fileReader.query(processRegion.getContig(),processRegion.getStart(),processRegion.getEnd());
         Configuration conf=new Configuration();
         Path path = new Path(outputDir+"/vcfheader");
         SeekableStream in2 = WrapSeekable.openPath(path.getFileSystem(conf), path);
@@ -106,13 +104,7 @@ public class OnlyExtractVariants implements PairFlatMapFunction<String, GenomeLo
             GenomeLocation gloc=new GenomeLocation(vc.getContig(),dBC.chrIndex.get(vc.getContig()),vc.getStart(),vc.getEnd());
             variantsList.add(new Tuple2<>(gloc,1));
         }
-//        while(vcsAtRegion.hasNext()){
-//            VariantContext vc=vcsAtRegion.next();
-//            if(vc.getNAlleles()>2) {
-//                GenomeLocation gloc=new GenomeLocation(vc.getContig(),dBC.chrIndex.get(vc.getContig()),vc.getStart(),vc.getEnd());
-//                variantsList.add(new Tuple2<>(gloc,1));
-//            }
-//        }
+
         return variantsList.iterator();
     }
 

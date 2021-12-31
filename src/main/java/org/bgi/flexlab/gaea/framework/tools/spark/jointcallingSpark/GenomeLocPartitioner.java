@@ -22,11 +22,7 @@ public class GenomeLocPartitioner extends Partitioner {
     @Override
     public int getPartition(Object key) {
         GenomeLongRegion glocKey=(GenomeLongRegion)key;
-//        if(glocKey.getStart()<1100000){
-//            return 0;
-//        }else {
-//            return 1;
-//        }
+
         if(glocKey.getStart()-gloc.getStart()<0){
             return 0;
         }else if(glocKey.getStart()>gloc.getEnd()){

@@ -35,9 +35,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
     private final GenomeLongRegion gloc;
     private final String bpPath;
     private final String vVcfPath;
-//    public Set<VCFHeaderLine> gvcfHeaderMetaInfo;
-//    public VCFHeaderVersion version = null;
-private JointCallingSparkOptions options = new JointCallingSparkOptions();
+    private JointCallingSparkOptions options = new JointCallingSparkOptions();
     private final static String INPUT_LIST = "input.gvcf.list";
     private HashMap<String, String> confMap=new HashMap<>();
     private final String outputDir;
@@ -47,7 +45,6 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
     private ArrayList<GenomeLocation> regions=new ArrayList<>();
     private final int cycleIter;
     private final ArrayList<Long> bpPartition=new ArrayList<>();
-//    public static VCFHeader mergedHeader=null;
     public CombineVariants(GenomeLongRegion region, ArrayList<GenomeLocation> regions,String outputBP, HashMap<String, String> confMap,
                            Broadcast<DriverBC> dBC,int cycleIter,ArrayList<Long> bpPartition) {
         gloc=region;
@@ -100,8 +97,7 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
         Integer mapSMtagInt=0;
         int totalSampleSize=0;
         VCFHeaderVersion version = null;
-//        HashMap<Integer,Set<String>> mapIndexSample=new HashMap<>();
-//        ArrayList<VCFCodec> codec = new ArrayList<VCFCodec>();
+
         ArrayList<String> mapGvcfList=new ArrayList<String>();
         while(StringIterator.hasNext()) {
             String gvcfPath = StringIterator.next();
@@ -139,21 +135,14 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
         VCFHeader virtualHeader = null;
         VCFHeader mapMergedHeader=null;
         String mapSMtag=null;
-//        HashMap<Integer, String> contigs = new HashMap<Integer, String>();
         Map<String, Integer> contigDict = new HashMap<String, Integer>();
         GenomeLocationParser parser = null;
         ReferenceShare genomeShare = null;
-//        DbsnpShare dbsnpShare = null;
         LazyVCFGenotypesContext.HeaderDataCache vcfHeaderDataCache =
                 new LazyVCFGenotypesContext.HeaderDataCache();
         SimpleDateFormat formatter = new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss:SSS");
         VariantAnnotatorEngine annotationEngine=null;
-//        List<String> annotationsToUse = new ArrayList<>();
 
-//        List<String> annotationGroupsToUse = new ArrayList<>(
-//                Arrays.asList(new String[] { StandardAnnotation.class.getSimpleName() }));
-
-//        ArrayList<BufferedReader> gvcfBufReader=new ArrayList<BufferedReader>();
         ArrayList<VariantContext> curSamplesVC=new ArrayList<VariantContext>();
 
         Integer sISize=sampleIndex.size();
@@ -171,10 +160,7 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
         if (mapGvcfList.size()==0)
             return;
         gvcfHeaderMetaInfo=virtualHeader.getMetaDataInInputOrder();
-//        Set<String> chrs=new TreeSet<>();
-//        for(GenomeLocation l:regions){
-//            chrs.add(l.getContig());
-//        }
+
         for(String gvcfPath:mapGvcfList){
             String[] eles=gvcfPath.split("/");
             mapSamplePath.add(eles[eles.length-1]);
@@ -199,28 +185,14 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
             VCFCodec tmp_codec=new VCFCodec();
             Set<String> curSample=new HashSet<>();
             curSample.add(sampleName);
-//            mapIndexSample.put(ii,curSample);
             tmp_codec.setVCFHeader(new VCFHeader(gvcfHeaderMetaInfo,curSample), version);
-//            codec.add(tmp_codec);
             logger.warn(ii+"\tcurrent index");
             if(gvcfPath.startsWith("file://")) {
                 gvcfPath=gvcfPath.substring(7);
             }
-//            VCFCodec query_codec=new VCFCodec();
             TabixFeatureReader sampleReader=new TabixFeatureReader(gvcfPath,tmp_codec);
-//            Iterator<VariantContext> it=sampleReader.query(gloc.getContig(),gloc.getStart(),gloc.getEnd());
             samplesReader.add(sampleReader);
-//            if(gvcfPath.endsWith(".gz")) {
-//                if(gvcfPath.startsWith("/user")) {
-//                    reader=new BufferedReader(new InputStreamReader(new GZIPInputStream(path2.getFileSystem(hadoop_conf).open(path2))));
-//                    reader.skip(1);
-//                }else {
-//                    reader = new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(gvcfPath))));
-//                }
-//            }else {
-//                reader = new BufferedReader(new InputStreamReader(new FileInputStream(gvcfPath)));
-//            }
-//            gvcfBufReader.add(reader);
+
             ii++;
 
         }
@@ -244,31 +216,20 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
         if(outOutFilePath.exists()){
             outOutFilePath.delete();
         }
-//        BufferedWriter outWriter=new BufferedWriter(new FileWriter(outFile));
-//        long curOffset=0;
-//        TreeMap<Integer,Long> outputIndexOffset=new TreeMap<>();
+
         BlockCompressedOutputStream outWriter=new BlockCompressedOutputStream(oneOutFile);
-//        ArrayList<BufferedWriter> outWriterList=new ArrayList<>();
         for(int i=0;i<options.getReducerNumber();i++){
             String outFile=options.getOutDir()+"/combine."+cycleIter+"/combineFile."+mapSMtagInt+"."+i;
-//            Path outPath=new Path(outFile);
-//            FileSystem outFs=outPath.getFileSystem(hadoop_conf);
-//            if(outFs.exists(outPath)){
-//                outFs.delete(outPath,true);
-//            }
-//            BufferedWriter curRegionTheseSamples=new BufferedWriter(new OutputStreamWriter(outFs.create(outPath)));
+
             File outFilePath=new File(outFile);
             if(outFilePath.exists()){
                 outFilePath.delete();
             }
-//            BufferedWriter curRegionTheseSamples=new BufferedWriter(new FileWriter(outFile));
-//            outWriterList.add(curRegionTheseSamples);
+
         }
 
 
-//        System.out.println("mapSMtag:\t"+mapSMtagInt);
         mapMergedHeader=new VCFHeader(gvcfHeaderMetaInfo,sampleNames);
-        //mapMergedHeader=getVCFHeaderFromInput(mapMultiSamplesHeaderSet);
         vcfHeaderDataCache.setHeader(mapMergedHeader);
 
         mapSMtag= Utils.join("_",mapMergedHeader.getSampleNamesInOrder());
@@ -283,9 +244,7 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
         for (VCFContigHeaderLine line : virtualHeader.getContigLines()) {
             chrIndexs.put(line.getID(), line.getContigIndex());
         }
-//        for (VCFContigHeaderLine line : virtualHeader.getContigLines()) {
-//            contigs.put(line.getContigIndex(), line.getID());
-//        }
+
 
         parser = new GenomeLocationParser(virtualHeader.getSequenceDictionary());
 
@@ -293,14 +252,11 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
 
         genomeShare = new ReferenceShare();
         genomeShare.loadChromosomeList(options.getReference());
-//        dbsnpShare = new DbsnpShare(options.getDBSnp(), options.getReference());
-//        dbsnpShare.loadChromosomeList(options.getDBSnp() + VcfIndex.INDEX_SUFFIX);
+
         for (final VCFContigHeaderLine contig : virtualHeader.getContigLines())
             contigDict.put(contig.getID(), contig.getContigIndex());
         logger.warn("after contigDict Map done");
-//        annotationEngine = new VariantAnnotatorEngine(annotationGroupsToUse, annotationsToUse,
-//                Collections.<String>emptyList());
-//        annotationEngine.initializeDBs(options.getDBSnp() != null);
+
         logger.warn("setup done");
 
         //与map的map功能类似
@@ -309,31 +265,9 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
             winFilePath=winFilePath.substring(7);
         }
         String win_line;
-//        gvcfBufReader.clear();
         Path firstPath=new Path(mapGvcfList.get(0));
         FileSystem gvcf_fs=firstPath.getFileSystem(hadoop_conf);
-//        for(int i=0;i!=mapGvcfList.size();i++) {
-//            String gvcfFile=mapGvcfList.get(i);
-//            if(gvcfFile.startsWith("file://")) {
-//                gvcfFile=gvcfFile.substring(7);
-//            }
-//            BufferedReader reader=null;
-//            if(gvcfFile.endsWith(".gz")) {
-//                if(gvcfFile.startsWith("/user")) {
-//                    reader=new BufferedReader(new InputStreamReader(new GZIPInputStream(gvcf_fs.open(new Path(gvcfFile)))));
-//                }else {
-//                    reader = new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(gvcfFile))));
-//                }
-//            }else {
-//                reader = new BufferedReader(new InputStreamReader(new FileInputStream(gvcfFile)));
-//            }
-//            gvcfBufReader.add(reader);
-//        }
-//        String[] tmpLines=new String[mapGvcfList.size()];
-//        for(int i=0;i!=mapGvcfList.size();i++) {
-//            String tmpline=gvcfBufReader.get(i).readLine();
-//            tmpLines[i]=tmpline;
-//        }
+
         //method 3, merge code from MapperHuge
         BufferedReader win_reader=new BufferedReader(new FileReader(winFilePath));
         String last_contig="";
@@ -356,13 +290,8 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
         Integer last_pos=0;
         Long last_bp_start=-1L;
         Long last_bp_end=-1L;
-//        Set<Integer> last_end_breakpoints=new TreeSet<Integer>();
         ArrayList<Iterator<VariantContext>> sampleVCsIter=new ArrayList<>();
-//        for(int i=0;i!=mapGvcfList.size();i++) {
-//            VCFFileReader fileReader = dBC.sampleReader.get(mapGvcfList.get(i));
-//            Iterator<VariantContext> vcsAtRegion = fileReader.query(gloc.getContig(), gloc.getStart(), gloc.getEnd());
-//            sampleVCsIter.add(vcsAtRegion);
-//        }
+
 
         ArrayList<Iterator<VariantContext>> samplesIt=new ArrayList<>();
         ArrayList<ArrayList<VariantContext>> samplesVcList=new ArrayList<>();
@@ -383,15 +312,10 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
             Long regionEnd=dBC.accumulateLength.get(dBC.chrIndex.get(curRegion.getContig()))+curRegion.getEnd();
             for (int i = 0; i != mapGvcfList.size(); i++) {
                 Iterator<VariantContext> curIt = samplesReader.get(i).query(curRegion.getContig(), curRegion.getStart(), curRegion.getEnd());
-//            ArrayList<VariantContext> tmpVCs=new ArrayList<>();
-//            while(curIt.hasNext()){
-//                tmpVCs.add(curIt.next());
-//            }
-//            samplesVcList.add(tmpVCs);
+
                 logger.info("process samples in this partition:\t" + mapGvcfList.get(i));
                 samplesIt.add(curIt);
-//            VcIndex[i]=0;
-//            samplesReader.get(i).close();
+
             }
             HashMap<Integer, VariantContext> lastVC = new HashMap<>();
             int testInt = 0;
@@ -414,12 +338,7 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                     }
                 }
                 Integer winChrID = chrIndexs.get(contig);
-//                if (last_bp_start != -1) {
-////                    bpStarts.add(last_bp_start);
-////                    bpEnds.add(last_bp_end);
-////                    last_bp_start = -1L;
-////                    last_bp_end = -1L;
-//                }
+
                 //将目标处理区域内的bp信息提取出来
                 while (!bpFileEnd) {
                     if (bpstart <= smallWinEnd && bpend >= smallWinStart) {
@@ -429,8 +348,7 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                         bpStarts.add(intBpStart);
                         bpEnds.add(intBpEnd);
                         if(bpend>smallWinEnd){
-//                            last_bp_start = bpstart;
-//                            last_bp_end = bpend;
+
                             break;
                         }
                         bpRegion = bp_reader.readLine();
@@ -443,8 +361,7 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                         bpstart=Long.parseLong(bpeles[0]);
                         bpend=Long.parseLong(bpeles[1]);
                     } else if (bpstart > smallWinEnd) {
-//                        last_bp_start = bpstart;
-//                        last_bp_end = bpend;
+//
                         break;
                     } else {
                         bpRegion = bp_reader.readLine();
@@ -465,52 +382,7 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                 }
                 for (int i = 0; i != mapGvcfList.size(); i++) {
                     String sampleName = sampleNames.get(i);
-                    //非query方式的代码起始位置
-                /*
-                VariantContext lastVc=null;
-                File lastVCFile=new File((new File(vVcfPath)).getParent()+"/"+sampleName+".mr2.lastVC");
-                if(lastVCFile.exists()){
-                    BufferedReader lastVCReader=new BufferedReader(new FileReader(lastVCFile));
-                    String line1Sample,line2VC;
-                    if((line1Sample=lastVCReader.readLine())!=null){
-                        if(!line1Sample.equals(sampleName)){
-                            logger.error("code error");
-                            System.exit(1);
-                        }
-                    }
-                    if((line2VC=lastVCReader.readLine())!=null){
-                        lastVc=codec.get(i).decode(line2VC);
-                    }
-                    lastVCReader.close();
-                }
-                if(lastVc!=null){
-                    if(lastVc.getChr().equals(chr) && lastVc.getStart()<=end && lastVc.getEnd()>=start) {
-                        region_vcs.add(lastVc);
-                        if(lastVc.getNAlleles()>2) {
-                            for(int tmpPos=lastVc.getStart();tmpPos<=lastVc.getEnd();tmpPos++) {
-                                end_breakpoints.add(tmpPos);
-                            }
-                        }else {
-                            end_breakpoints.add(lastVc.getEnd());
-                        }
-                    }
-                }
-                */
-//                    if (lastVC.containsKey(i)) {
-//                        VariantContext lastVc = lastVC.get(i);
-//                        if (lastVc.getChr().equals(chr) && lastVc.getStart() <= end && lastVc.getEnd() >= start) {
-//                            region_vcs.add(lastVc);
-//                            if (lastVc.getNAlleles() > 2) {
-//                                for (int tmpPos = lastVc.getStart(); tmpPos <= lastVc.getEnd(); tmpPos++) {
-//                                    end_breakpoints.add(tmpPos);
-//                                }
-//                            } else {
-//                                end_breakpoints.add(lastVc.getEnd());
-//                            }
-//                        }
-//                        lastVC.remove(i);
-//                    }
-                    //非query方式的代码结束位置
+
                 }
                 for (int i = 0; i != curSamplesVC.size(); i++) {
                     VariantContext tmpVC = curSamplesVC.get(i);
@@ -540,20 +412,11 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                     String samplePath = mapGvcfList.get(i);
 
                     String sampleName = sampleNames.get(i);
-//                Integer sampleIdx=dBC.sampleIndex.get(sampleName);
-//                while((line=JointCallingSpark.sampleReadersForMR2.get(sampleIdx).readLine())!=null) {
-//                Iterator<VariantContext> curIt=samplesReader.get(i).query(contig,start,end);
-//                while(samplesVcList.get(i).size()>VcIndex[i]){
+//
                     int index=0;
                     while (samplesIt.get(i).hasNext()) {
                         final VariantContext v = samplesIt.get(i).next();
-//                    if(line.startsWith("#")) {
-//                        continue;
-//                    }
-//                    final VariantContext v=samplesVcList.get(i).get(VcIndex[i]);
-//                    VcIndex[i]++;
-
-//                    final VariantContext v = codec.get(i).decode(line);
+//
                         CommonInfo info = v.getCommonInfo();
                         if (!info.hasAttribute("SM")) info.putAttribute("SM", sampleName);
                         if (v.getChr().equals(chr)) {
@@ -645,7 +508,6 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                 if (!contig.equals(last_contig)) {
                     last_end = 0;
                 }
-                //last_pos=0;
                 int tmpIter = 0;
                 if (logOut) {
                     System.out.println(formatter.format(new Date()) + "\tbefore merge");
@@ -685,12 +547,8 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                             break;
                         }
                     }
-                    //System.out.println(region_vcs.size());
                     if (!stoppedVCs.isEmpty()) {
-                        //System.out.println(stoppedVCs.size());
-//					for(VariantContext vc:stoppedVCs) {
-//						System.out.println(vc);
-//					}
+
                         final GenomeLocation gLoc = parser.createGenomeLocation(chr, last_end);
                         final VariantContext mergedVC;
                         if(posStart>=dBC.accumulateLength.get(gLoc.getContigIndex()+1)){
@@ -701,14 +559,9 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                         if (containsTrueAltAllele(stoppedVCs)) {
                             mergedVC = ReferenceConfidenceVariantContextMerger.mapMerge(stoppedVCs, parser.createGenomeLocation(chr, pos), (byte) ref.getBase(posStart - 1), false, false, annotationEngine);
                             tmpIter++;
-//						if(mergedVC.getStart()==1002417){
-//							System.out.println(mergedVC+"\n"+mergedVC.getAttribute("DP"));
-//						}
+
                         } else {
                             mergedVC = referenceBlockMerge(stoppedVCs, gLoc, refBase, pos);
-//						if(mergedVC.getStart()==1002417){
-//							System.out.println(mergedVC+"\n"+mergedVC.getAttribute("DP"));
-//						}
                         }
                         if (mergedVC == null) {
                             continue;
@@ -726,9 +579,6 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                         }
                         HashMap<String, Object> maps = new HashMap<>(info.getAttributes());
                         info.setAttributes(maps);
-//                        GenomeLocation vcLoc = new GenomeLocation(mergedVC.getContig(), chrIndexs.get(mergedVC.getContig()), mergedVC.getStart(), mergedVC.getEnd());
-                        //有返回值的写法
-//                    vcList.add(mergedVC);
                         long vcStartLong=dBC.accumulateLength.get(chrIndexs.get(mergedVC.getContig()))+mergedVC.getStart();
                         long vcEndlong=dBC.accumulateLength.get(chrIndexs.get(mergedVC.getContig()))+mergedVC.getEnd();
                         int startIter=0;
@@ -742,8 +592,6 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                                 break;
                             }
                         }
-//                        int startIter= (int) (vcStartLong<gloc.getStart()?0:(int)((vcStartLong-gloc.getStart())/rangeInEachOutFile));
-//                        int endIter= vcEndlong>gloc.getEnd()?options.getReducerNumber()-1: (int) ((vcStartLong - gloc.getStart()) / rangeInEachOutFile);
                         if(startIter>=options.getReducerNumber()){
                             startIter=options.getReducerNumber()-1;
                         }
@@ -761,11 +609,6 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
                                 startOffset.put(iter,outWriter.getFilePointer());
                             }
                             endOffset.put(iter,outWriter.getFilePointer());
-//                            String vcLine=vcfEncoder.encode(mergedVC)+"\n";
-//                            logger.info("vc start:\t"+mergedVC.getStart()+", will write to "+mapSMtagInt+"."+iter+"\t"+rangeInEachOutFile+"\t"+gloc.getStart());
-
-//                            outWriterList.get(iter).write(vcLine+"\n");
-//                            System.out.println(outWriter.getFilePointer());
 
                         }
                         String vcLine=vcfEncoder.encode(mergedVC)+"\n";
@@ -791,9 +634,7 @@ private JointCallingSparkOptions options = new JointCallingSparkOptions();
             samplesIt.clear();
         }
         win_reader.close();
-//        for(int i=0;i!=outWriterList.size();i++){
-//            outWriterList.get(i).close();
-//        }
+
         outWriter.close();
         File idxFile=new File(oneOutFile+".idx");
         if(idxFile.exists()){

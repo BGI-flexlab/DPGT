@@ -46,8 +46,6 @@ public class ProcessHeader implements Function2<Integer,Iterator<String>,Iterato
             timeIter++;
             VCFLocalLoader vcfLL=new VCFLocalLoader(a);
             vcfHeaderWriter.write(a+"\t"+aFile.getName()+"\t"+vcfLL.getHeader().getSampleNamesInOrder().get(0)+"\n");
-//            sampleIndex.put(vcfLL.getHeader().getSampleNamesInOrder().get(0),inputIndex);
-//            pathSample.put(aFile.getName(), vcfLL.getHeader().getSampleNamesInOrder().get(0));
             inputIndex++;
             headers.add(vcfLL.getHeader());
             sampleNames.addAll(vcfLL.getHeader().getSampleNamesInOrder());

@@ -35,19 +35,7 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
         ArrayList<String> r=new ArrayList<>();
         r.add("done");
 
-//        if (dBC.options.getTargetRegion() != null) {
-//            if (cycle-integer!=1) {
-//                return r.iterator();
-//            }
-//
-//        } else {
-//            if (cycle <= integer) {
-//                return r.iterator();
-//            }
-//        }
-//        if(cycle <= integer){
-//            return r.iterator();
-//        }
+
 
         if (dBC.options.getTargetRegion() != null && !Objects.equals(integer, contigStart))
             return  r.iterator();
@@ -73,8 +61,6 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
         if(!outFileName.exists()) {
             log.info("merging parallel files to",outFileName);
             BlockCompressedOutputStream out = new BlockCompressedOutputStream(outputName);
-//        SeekableStream in = new SeekableFileStream(new File(dBC.outputDir+"/merged.vcfheader"));
-//        VCFHeader header = VCFHeaderReader.readHeaderFrom(in);
             //write header
             String mergedHeaderFile = dBC.options.getOutDir() + "/merged.vcfheader";
             File hf = new File(mergedHeaderFile);
@@ -90,7 +76,6 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
                 System.exit(1);
             }
             long start = 1;
-            long end = start + dBC.options.getRegionSize() - 1;
             String firstFile = "";
             ArrayList<String> justCopyList = new ArrayList<>();
             String lastFile = "";
@@ -242,12 +227,6 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
             out.close();
         }
         //create tbi index
-//        VCFCodec codec = new VCFCodec();
-//        File chrVcf=new File(dBC.outputDir+"/"+chr+".vcf.gz");
-//        TabixIndex tbiIndex= IndexFactory.createTabixIndex(new File(dBC.outputDir+"/"+chr+".vcf.gz"),codec, TabixFormat.VCF,null);
-//        //Index tbiIndex=ctor.finalizeIndex(iterator.getPosition());
-//
-//        tbiIndex.writeBasedOnFeatureFile(chrVcf);
 
         //create tbi index
         log.info("creating tbi index for:",outputName);
@@ -278,7 +257,6 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
                 readHeader=true;
                 continue;
             }
-//            final long position2 = BlockCompressedFilePointerUtil.getBlockAddress(bci.getPosition());
             currentContext = codec.decode(line);
             checkSorted(lastContext, currentContext);
             //should only visit chromosomes once
@@ -295,7 +273,6 @@ public class MergeToChrom implements Function2<Integer, Iterator<Integer>, Itera
             lastContext = currentContext;
         }
 
-//        iterator.close();
         Index idx=ic.finalizeIndex(bci.getPosition());
         idx.writeBasedOnFeatureFile(output);
         bci.close();

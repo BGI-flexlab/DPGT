@@ -30,8 +30,6 @@ public class JointCallingSpark {
     private final static String Window_File = "window.file.path";// window file path
     private static final Logger logger = LoggerFactory.getLogger(JointCallingSpark.class);
     private static final LinkedHashMap<String, Integer> chrIndex=new LinkedHashMap<>();
-//    public static ArrayList<BufferedReader> sampleReaders=new ArrayList<>();
-//    public static ArrayList<BufferedReader> sampleReadersForMR2=new ArrayList<>();//HashMap可以深拷贝，不担心互相受影响
     private static GenomeLocation parseRegionFromString(String targetRegion) {
 //        GenomeLocation gloc;
         String ele="";
@@ -98,13 +96,8 @@ public class JointCallingSpark {
 
 
         Configuration hadoop_conf=new Configuration(hadoopConf);
-//        MultipleVCFHeaderForJointCalling multiVcfHeader = new MultipleVCFHeaderForJointCalling();
         logger.warn("before get Header");
-//        ArrayList<Path> pathList=new ArrayList<>();
         VCFHeader mergeHeader=null;
-//        for(String a:options.getInputStringList()){
-//            pathList.add(new Path(a));
-//        }
         File headerDir=new File(options.getOutDir()+"/headers");
 
 
@@ -226,7 +219,6 @@ public class JointCallingSpark {
 
         //创建窗口文件
         String win_out_file = options.getOutDir() + "/windows.bed";
-        // Path raw_win_file=new Path(options.getWinFile());//get windows file path from
         // command
         if (win_out_file.startsWith("file://")) {
             win_out_file = win_out_file.substring(7);
@@ -297,13 +289,11 @@ public class JointCallingSpark {
                 String sampleName = pathSample.get(rName);
                 indexSamples.add(sampleName);
             }
-//            multiMapSampleNames.add(indexSamples);
             if (indexSamples.size()!=0)
                 multiMapSampleNames.add(indexSamples);
         }
         int iter=0;
 
-//        Broadcast<ArrayList<BufferedReader>> sampleReadersForMR2BC=sc.broadcast(sampleReadersForMR2);
         HashMap<Integer,Long> accumulateLength=new HashMap<>();
         long totalLength=0;
         for(int ii=0;ii<chrIndex.size();ii++){
@@ -518,10 +508,7 @@ public class JointCallingSpark {
             }
             logger.info("current total variants:\t"+totalVariantsNum.value());
         }
-        //create files of each contains whole chromosome data
-//        if (options.getTargetRegion() != null){
-//            iter = contigIdx+1;
-//        }
+
         if(options.isMergeChrom()){
             //merge chr1-22,X,Y,M as default
             ArrayList<Integer> tmpList=new ArrayList<>();

@@ -211,9 +211,7 @@ public class ExtractVariants implements PairFlatMapFunction<Iterator<String>, In
         pathSample.clear();
         sampleIndex.clear();
         mapSMtagInt+=totalSampleSize;
-//        System.out.println("mapSMtag:\t"+mapSMtagInt);
         mapMergedHeader=new VCFHeader(gvcfHeaderMetaInfo,sampleNames);
-        //mapMergedHeader=getVCFHeaderFromInput(mapMultiSamplesHeaderSet);
         vcfHeaderDataCache.setHeader(mapMergedHeader);
 
         mapSMtag= Utils.join("_",mapMergedHeader.getSampleNamesInOrder());
@@ -301,11 +299,7 @@ public class ExtractVariants implements PairFlatMapFunction<Iterator<String>, In
         Integer last_bp_end=-1;
         Set<Integer> last_end_breakpoints=new TreeSet<Integer>();
         ArrayList<Iterator<VariantContext>> sampleVCsIter=new ArrayList<>();
-//        for(int i=0;i!=mapGvcfList.size();i++) {
-//            VCFFileReader fileReader = dBC.sampleReader.get(mapGvcfList.get(i));
-//            Iterator<VariantContext> vcsAtRegion = fileReader.query(gloc.getContig(), gloc.getStart(), gloc.getEnd());
-//            sampleVCsIter.add(vcsAtRegion);
-//        }
+
         String contig=gloc.getContig();
         Integer start=gloc.getStart();
         Integer end=gloc.getEnd()>start+dBC.options.getWindowsSize()-1?start+dBC.options.getWindowsSize()-1:gloc.getEnd();
@@ -541,7 +535,6 @@ public class ExtractVariants implements PairFlatMapFunction<Iterator<String>, In
                     continue;
                 }
                 List<VariantContext> stoppedVCs = new ArrayList<>();
-                //System.out.println(region_vcs.size());
                 for(int j=0;j<region_vcs.size();j++) {
                     final VariantContext vc = region_vcs.get(j);
                     //the VC for the previous state will be stopped if its position is previous to the current position or it we've moved to a new contig
@@ -565,12 +558,8 @@ public class ExtractVariants implements PairFlatMapFunction<Iterator<String>, In
                         break;
                     }
                 }
-                //System.out.println(region_vcs.size());
                 if ( !stoppedVCs.isEmpty()) {
-                    //System.out.println(stoppedVCs.size());
-//					for(VariantContext vc:stoppedVCs) {
-//						System.out.println(vc);
-//					}
+
                     final GenomeLocation gLoc =parser.createGenomeLocation(chr, last_end);
                     final VariantContext mergedVC;
                     final Byte refBase =(byte) ref.getBase(gLoc.getStart());
@@ -578,14 +567,9 @@ public class ExtractVariants implements PairFlatMapFunction<Iterator<String>, In
                     if ( containsTrueAltAllele(stoppedVCs) ) {
                         mergedVC = ReferenceConfidenceVariantContextMerger.mapMerge(stoppedVCs, parser.createGenomeLocation(chr, posStart), (byte) ref.getBase(posStart-1), false, false, annotationEngine);
                         tmpIter++;
-//						if(mergedVC.getStart()==1002417){
-//							System.out.println(mergedVC+"\n"+mergedVC.getAttribute("DP"));
-//						}
+
                     }else {
                         mergedVC = referenceBlockMerge(stoppedVCs, gLoc,refBase, pos);
-//						if(mergedVC.getStart()==1002417){
-//							System.out.println(mergedVC+"\n"+mergedVC.getAttribute("DP"));
-//						}
                     }
                     if(mergedVC==null) {
                         continue;
@@ -598,7 +582,6 @@ public class ExtractVariants implements PairFlatMapFunction<Iterator<String>, In
                     maps.putAll(info.getAttributes());
                     info.setAttributes(maps);
                     GenomeLocation vcLoc=new GenomeLocation(mergedVC.getContig(),chrIndexs.get(mergedVC.getContig()),mergedVC.getStart(),mergedVC.getEnd());
-//                    vcList.add(new Tuple2<>(vcLoc,mergedVC));
                     vcList.add(new Tuple2<>(mergedVC.getStart(),1));
                     stoppedVCs.clear();
                 }
@@ -627,9 +610,7 @@ public class ExtractVariants implements PairFlatMapFunction<Iterator<String>, In
         }
         offsetWrite.close();
         win_reader.close();
-//        for(int i=0;i!=mapGvcfList.size();i++){
-//            samplesVcList.get(i).clear();
-//        }
+
         return vcList.iterator();
     }
     private boolean containsTrueAltAllele(final List<VariantContext> VCs) {

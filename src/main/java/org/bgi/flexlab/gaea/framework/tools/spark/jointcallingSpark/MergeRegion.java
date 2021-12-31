@@ -17,10 +17,7 @@ public class MergeRegion implements FlatMapFunction<Iterator<GenomeLongRegion>, 
         gloc=loc;
     }
     @Override public Iterator<GenomeLongRegion> call(Iterator<GenomeLongRegion> genomeLocationIterator) throws Exception {
-//        Integer start=gloc.getStart();
-//        Integer end=gloc.getEnd();
-//        Integer winStart=start;
-//        Integer winEnd=start+slide>end?end:start+slide;
+
         Set<Long> realBreakpoints=new TreeSet<>();
         while(genomeLocationIterator.hasNext()){
             GenomeLongRegion loc=genomeLocationIterator.next();
@@ -29,7 +26,6 @@ public class MergeRegion implements FlatMapFunction<Iterator<GenomeLongRegion>, 
                 realBreakpoints.add(i);
             }
         }
-//		System.out.println("size:\t"+ii+"\tbreakpoints Size:\t"+realBreakpoints.size());
         long wStart=0;
         long wEnd=0;
         long lastPos=0;
