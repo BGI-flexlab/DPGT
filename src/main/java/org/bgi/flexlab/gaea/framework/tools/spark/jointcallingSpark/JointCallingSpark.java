@@ -79,7 +79,6 @@ public class JointCallingSpark {
         LinkedHashMap<String,Integer> sampleIndex=new LinkedHashMap<>();
         Map<String, String> pathSample = new HashMap<>();
 
-
         VCFHeader header = null;
         LinkedHashMap<Integer, String> contigs = null;
         SparkConf conf = new SparkConf().setAppName("JointCallingSpark");
@@ -92,7 +91,6 @@ public class JointCallingSpark {
         if(!tmpDir.exists()){
             tmpDir.mkdirs();
         }
-
 
         Configuration hadoop_conf=new Configuration(hadoopConf);
         logger.warn("before get Header");
@@ -357,7 +355,6 @@ public class JointCallingSpark {
             String outputBP=options.getOutDir()+"/bps."+String.valueOf(iter);
             File bpDir=new File(outputBP);
             if(!bpDir.exists() || !bpDir.isDirectory()) {
-
                 JavaPairRDD<GenomeLongRegion, Integer> partitionedRegion = variantsRegion.partitionBy(new GenomeLocPartitioner(options.getMapperNumber(), region));
                 JavaRDD<GenomeLongRegion> mergedRegion = partitionedRegion.keys().mapPartitions(new MergeRegion(region)).sortBy(x -> x.getStart(), true, 1);
                 mergedRegion.saveAsTextFile("file://" + outputBP);
@@ -435,20 +432,15 @@ public class JointCallingSpark {
             }
 
             File combineOutLocalFile=new File(combineOutLocal);
-            if(!combineOutLocalFile.exists()){
-                combineOutLocalFile.mkdirs();
-                if(doGenotype) {
-                    sortedGvcfSamples.foreachPartition(new CombineVariants(regions, mergedAllBPs, confMap, dBC, iter, bpPartition));
-                }
-            }else{
-                if(!combineOutLocalFile.isDirectory()){
+            if (!combineOutLocalFile.exists() || !combineOutLocalFile.isDirectory()) {
+                if (!combineOutLocalFile.isDirectory())
                     combineOutLocalFile.delete();
-                    combineOutLocalFile.mkdirs();
-                    if(doGenotype) {
-                        sortedGvcfSamples.foreachPartition(new CombineVariants(regions, mergedAllBPs, confMap, dBC, iter, bpPartition));
-                    }
+                combineOutLocalFile.mkdirs();
+                if (doGenotype) {
+                    sortedGvcfSamples.foreachPartition(new CombineVariants(regions, mergedAllBPs, confMap,dBC, iter, bpPartition));
                 }
             }
+
             ArrayList<String> tmpStr=new ArrayList<>();
             for(int i=0;i<options.getReducerNumber()*3;i++){
                 tmpStr.add("abc"+String.valueOf(i));

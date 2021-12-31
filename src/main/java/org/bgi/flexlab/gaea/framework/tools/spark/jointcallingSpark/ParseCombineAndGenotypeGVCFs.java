@@ -64,7 +64,7 @@ public class ParseCombineAndGenotypeGVCFs implements Function2<Integer,Iterator<
         }
     }
     private final Comparator<VariantContext> comparator4 = new VcComp();
-    private final String MERGER_HEADER_INFO = "vcfheaderinfo";
+
     @Override public Iterator<String> call(Integer index,Iterator<String> stringIterator) throws IOException {
         Logger log= LoggerFactory.getLogger(ParseCombineAndGenotypeGVCFs.class);
         Configuration hadoop_conf=new Configuration();
@@ -81,7 +81,8 @@ public class ParseCombineAndGenotypeGVCFs implements Function2<Integer,Iterator<
 
         GenomeLocationParser parser = new GenomeLocationParser(header.getSequenceDictionary());
         hadoop_conf.set(GaeaVCFOutputFormat.OUT_PATH_PROP, dBC.options.getOutDir() + "/vcfheader");
-        hadoop_conf.set(MERGER_HEADER_INFO, dBC.options.getOutDir()+"/"+MERGER_HEADER_INFO);
+        String MERGER_HEADER_INFO = "vcfheaderinfo";
+        hadoop_conf.set(MERGER_HEADER_INFO, dBC.options.getOutDir()+"/"+ MERGER_HEADER_INFO);
         SeekableStream in2=new SeekableFileStream(new File(dBC.outputDir+"/vcfheader"));
         headers.setMergeHeader(VCFHeaderReader.readHeaderFrom(in2));
         headers.setCurrentIndex(dBC.sampleIndex.size());
@@ -97,7 +98,7 @@ public class ParseCombineAndGenotypeGVCFs implements Function2<Integer,Iterator<
             log.error("sample size is 0");
             System.exit(1);
         }
-        Integer realSmallWindowSize=totalSampleSize>100000?10000000/totalSampleSize:dBC.options.getWindowsSize();
+        int realSmallWindowSize=totalSampleSize>100000?10000000/totalSampleSize:dBC.options.getWindowsSize();
         if(realSmallWindowSize==0){
             realSmallWindowSize=10;
         }

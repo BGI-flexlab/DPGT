@@ -7,14 +7,12 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
 
-public class MergeRegion implements FlatMapFunction<Iterator<GenomeLongRegion>, GenomeLongRegion>
-         {
+public class MergeRegion implements FlatMapFunction<Iterator<GenomeLongRegion>, GenomeLongRegion> {
     public GenomeLongRegion gloc;
     public MergeRegion(GenomeLongRegion loc){
         gloc=loc;
     }
     @Override public Iterator<GenomeLongRegion> call(Iterator<GenomeLongRegion> genomeLocationIterator) throws Exception {
-
         Set<Long> realBreakpoints=new TreeSet<>();
         while(genomeLocationIterator.hasNext()){
             GenomeLongRegion loc=genomeLocationIterator.next();
@@ -30,17 +28,14 @@ public class MergeRegion implements FlatMapFunction<Iterator<GenomeLongRegion>, 
         for(Long pos:realBreakpoints) {
             if(wStart==0) {
                 wStart=pos;
-                wEnd=pos;
             }else {
-                if(pos-lastPos==1) {
-                    wEnd=pos;
-                }else {
-                    GenomeLongRegion loc=new GenomeLongRegion(wStart,wEnd);
+                if (pos - lastPos != 1) {
+                    GenomeLongRegion loc = new GenomeLongRegion(wStart, wEnd);
                     realRegion.add(loc);
-                    wStart=pos;
-                    wEnd=pos;
+                    wStart = pos;
                 }
             }
+            wEnd=pos;
             lastPos=pos;
         }
         if(wStart!=0) {

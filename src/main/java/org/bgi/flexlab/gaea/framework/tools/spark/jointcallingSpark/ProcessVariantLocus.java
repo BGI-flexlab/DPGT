@@ -5,7 +5,6 @@ import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.tribble.TabixFeatureReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.*;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.bgi.flexlab.gaea.data.structure.location.GenomeLocation;
@@ -23,7 +22,6 @@ import java.util.*;
 public class ProcessVariantLocus implements PairFlatMapFunction<String, GenomeLongRegion, Integer> {
     private final ArrayList<GenomeLocation> regions=new ArrayList<>();
     private final Set<VCFHeaderLine> gvcfHeaderMetaInfo;
-    private final String vVcfPath;
     private static final Logger logger = LoggerFactory.getLogger(ProcessVariantLocus.class);
     private VCFHeaderVersion version = null;
     private VCFEncoder vcfEncoder=null;
@@ -32,7 +30,7 @@ public class ProcessVariantLocus implements PairFlatMapFunction<String, GenomeLo
     public static HashMap<String,BufferedReader> sampleReaders=new HashMap<>();
     public ProcessVariantLocus(ArrayList<GenomeLocation> regions, Broadcast<DriverBC> dBC) throws IOException {
         this.regions.addAll(regions);
-        this.vVcfPath=dBC.value().vVcfPath;
+        String vVcfPath = dBC.value().vVcfPath;
         outputDir=dBC.value().outputDir;
         this.dBC=dBC.value();
         SeekableStream in=new SeekableFileStream(new File(vVcfPath));
@@ -49,7 +47,6 @@ public class ProcessVariantLocus implements PairFlatMapFunction<String, GenomeLo
     @Override
     public Iterator<Tuple2<GenomeLongRegion,Integer>> call(String s) throws Exception {
         LinkedList<Tuple2<GenomeLongRegion,Integer>> variantsList = new LinkedList<>();
-        Configuration conf=new Configuration();
         SeekableStream in2 = new SeekableFileStream(new File(outputDir+"/vcfheader"));
         VCFHeader mergedHeader = VCFHeaderReader.readHeaderFrom(in2);
         if(vcfEncoder==null) {

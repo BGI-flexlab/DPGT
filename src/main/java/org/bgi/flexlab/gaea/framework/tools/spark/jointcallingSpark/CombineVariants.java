@@ -86,7 +86,6 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
         String sampleIndexFile=options.getOutDir()+"/vcfheaderinfo";
         File sampleIndexFilePath=new File(sampleIndexFile);
         BufferedReader indexReader = new BufferedReader(new FileReader(sampleIndexFilePath));
-        String indexLine;
         Logger logger= LoggerFactory.getLogger(CombineVariants.class);
         Map<String,String> pathSample=new HashMap<>();
         ArrayList<String> sampleNames= new ArrayList<>();
@@ -104,23 +103,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
             String[] eles=gvcfPath.split("/");
             mapSamplePath.add(eles[eles.length-1]);
         }
-        while((indexLine=indexReader.readLine())!=null) {
-            totalSampleSize++;
-            String[] eles=indexLine.split("\t");
-            if(eles.length!=3) {
-                logger.error("vcfheaderinfo file format error");
-            }
-            String name;
-            if(eles[2].endsWith(",")) {
-                name=eles[2].substring(0,eles[2].length()-1);
-            }else {
-                name=eles[2];
-            }
-            if(mapSamplePath.contains(eles[0])) {
-                sampleIndex.put(name, Integer.parseInt(eles[1]));
-                pathSample.put(eles[0], name);
-            }
-        }
+        totalSampleSize = getTotalSampleSize(mapSamplePath, sampleIndex, indexReader, logger, pathSample, totalSampleSize);
         ArrayList<String> samplesInMap=new ArrayList<>();
         for(String samplePath:mapSamplePath){
             samplesInMap.add(pathSample.get(samplePath));
@@ -140,7 +123,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
         ArrayList<VariantContext> curSamplesVC= new ArrayList<>();
 
         int ii=0;
-        ArrayList<TabixFeatureReader> samplesReader=new ArrayList<>();
+        ArrayList<TabixFeatureReader> samplesReader= new ArrayList<>();
         SeekableStream in=new SeekableFileStream(new File(options.getOutDir()+"/virtual.vcf"));
         virtualHeader = VCFHeaderReader.readHeaderFrom(in);//从header文件中读取header
         in.close();
@@ -184,7 +167,6 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
             }
             TabixFeatureReader sampleReader=new TabixFeatureReader(gvcfPath,tmp_codec);
             samplesReader.add(sampleReader);
-
             ii++;
 
         }
@@ -341,7 +323,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
 
                 for (int i = 0; i != curSamplesVC.size(); i++) {
                     VariantContext tmpVC = curSamplesVC.get(i);
-                    if (tmpVC.getChr().equals(contig) && tmpVC.getStart() <= end && tmpVC.getEnd() >= start) {
+                    if (tmpVC.getContig().equals(contig) && tmpVC.getStart() <= end && tmpVC.getEnd() >= start) {
                         region_vcs.add(tmpVC);
                         if (tmpVC.getNAlleles() > 2) {
                             for (int tmpPos = tmpVC.getStart(); tmpPos <= tmpVC.getEnd(); tmpPos++) {
@@ -370,7 +352,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
 //
                         CommonInfo info = v.getCommonInfo();
                         if (!info.hasAttribute("SM")) info.putAttribute("SM", sampleName);
-                        if (v.getChr().equals(contig)) {
+                        if (v.getContig().equals(contig)) {
                             if (v.getStart() <= end && v.getEnd() >= start) {
                                 while(index<bpStarts.size()) {
                                     if(v.getStart()<=bpEnds.get(index) && v.getEnd()>=bpStarts.get(index)) {
@@ -399,7 +381,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                             } else {
                                 v.getEnd();
                             }
-                        } else if (contigDict.get(v.getChr()) > contigDict.get(contig)) {
+                        } else if (contigDict.get(v.getContig()) > contigDict.get(contig)) {
                             curSamplesVC.add(v);
                             break;
                         }
@@ -493,7 +475,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
                         assert ref != null;
                         final byte refBase = (byte) ref.getBase(gLoc.getStart());
                         if (containsTrueAltAllele(stoppedVCs)) {
-                            mergedVC = ReferenceConfidenceVariantContextMerger.mapMerge(stoppedVCs, parser.createGenomeLocation(contig, pos), (byte) ref.getBase(posStart - 1), false, false, annotationEngine);
+                            mergedVC = ReferenceConfidenceVariantContextMerger.mapMerge(stoppedVCs, parser.createGenomeLocation(contig, pos), (byte) ref.getBase(posStart - 1), false, false, null);
 
                         } else {
                             mergedVC = referenceBlockMerge(stoppedVCs, gLoc, refBase, pos);
@@ -583,6 +565,29 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
         }
         idxWriter.close();
     }
+
+    public static int getTotalSampleSize(Set<String> mapSamplePath, HashMap<String, Integer> sampleIndex, BufferedReader indexReader, Logger logger, Map<String, String> pathSample, int totalSampleSize) throws IOException {
+        String indexLine;
+        while((indexLine=indexReader.readLine())!=null) {
+            totalSampleSize++;
+            String[] eles=indexLine.split("\t");
+            if(eles.length!=3) {
+                logger.error("vcfheaderinfo file format error");
+            }
+            String name;
+            if(eles[2].endsWith(",")) {
+                name=eles[2].substring(0,eles[2].length()-1);
+            }else {
+                name=eles[2];
+            }
+            if(mapSamplePath.contains(eles[0])) {
+                sampleIndex.put(name, Integer.parseInt(eles[1]));
+                pathSample.put(eles[0], name);
+            }
+        }
+        return totalSampleSize;
+    }
+
     private boolean containsTrueAltAllele(final List<VariantContext> VCs) {
         if ( VCs == null ) throw new IllegalArgumentException("The list of VariantContexts cannot be null");
 
@@ -599,7 +604,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
         // ref allele and start
         final Allele refAllele;
         final int start;
-        if ( loc == null || !loc.getContig().equals(first.getChr()) || first.getStart() >= loc.getStart() + 1) {
+        if ( loc == null || !loc.getContig().equals(first.getContig()) || first.getStart() >= loc.getStart() + 1) {
             start = first.getStart();
             refAllele = first.getReference();
         } else {
@@ -615,7 +620,7 @@ public class CombineVariants implements VoidFunction<Iterator<String>> {
             for ( final Genotype g : vc.getGenotypes() )
                 genotypes.add(new GenotypeBuilder(g).alleles(GaeaGvcfVariantContextUtils.noCallAlleles(g.getPloidy())).make());
         }
-        return new VariantContextBuilder("", first.getChr(), start, end, Arrays.asList(refAllele, VariantContextMerger.NON_REF_SYMBOLIC_ALLELE)).attributes(attrs).genotypes(genotypes).make();
+        return new VariantContextBuilder("", first.getContig(), start, end, Arrays.asList(refAllele, VariantContextMerger.NON_REF_SYMBOLIC_ALLELE)).attributes(attrs).genotypes(genotypes).make();
     }
 
 }

@@ -50,6 +50,7 @@ import org.bgi.flexlab.gaea.data.structure.reference.index.VcfIndex;
 import org.bgi.flexlab.gaea.data.structure.variant.VariantContextMerger;
 import org.bgi.flexlab.gaea.data.structure.vcf.VCFLocalLoader;
 import org.bgi.flexlab.gaea.data.variant.filter.VariantRegionFilter;
+import org.bgi.flexlab.gaea.framework.tools.spark.jointcallingSpark.CombineVariants;
 import org.bgi.flexlab.gaea.tools.jointcalling.JointCallingEngine;
 import org.bgi.flexlab.gaea.tools.jointcalling.VariantAnnotatorEngine;
 import org.bgi.flexlab.gaea.tools.jointcalling.genotypegvcfs.annotation.StandardAnnotation;
@@ -198,24 +199,8 @@ public class JointCallingMapperHuge extends
 		logger.warn("in mapperHuge");
 		Map<String,String> pathSample=new HashMap();
 		int totalSampleSize=0;
-		while((indexLine=indexReader.readLine())!=null) {
-			totalSampleSize++;
-			String[] eles=indexLine.split("\t");
-			if(eles.length!=3) {
-				logger.error("vcfheaderinfo file format error");
-			}
-			String name;
-			if(eles[2].endsWith(",")) {
-				name=eles[2].substring(0,eles[2].length()-1);
-			}else {
-				name=eles[2];
-			}
-			if(mapSamplePath.contains(eles[0])) {
-				sampleIndex.put(name, Integer.parseInt(eles[1]));
-				pathSample.put(eles[0], name);
-			}
-		}
-		mapSamplePath.clear();
+        totalSampleSize = CombineVariants.getTotalSampleSize(mapSamplePath, sampleIndex, indexReader, logger, pathSample, totalSampleSize);
+        mapSamplePath.clear();
 		indexReader.close();
 		realMapperNumber=Integer.parseInt(conf.get(JointCalling.Real_Mappers));
 		//Path path = new Path(conf.get(GaeaVCFOutputFormat.OUT_PATH_PROP));
