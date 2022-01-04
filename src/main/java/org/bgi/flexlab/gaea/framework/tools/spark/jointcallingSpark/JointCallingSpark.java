@@ -22,6 +22,9 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.util.*;
 
+
+
+
 @SuppressWarnings({"ALL",
         "ResultOfMethodCallIgnored"})
 public class JointCallingSpark {
@@ -84,6 +87,7 @@ public class JointCallingSpark {
         SparkConf conf = new SparkConf().setAppName("JointCallingSpark");
 
         conf.set("spark.serializer", "org.apache.spark.serializer.JavaSerializer");
+
         conf.set("spark.rdd.compress","true");
         JavaSparkContext sc = new JavaSparkContext(conf);   //打开spark环境
         Configuration hadoopConf=sc.hadoopConfiguration();
@@ -388,7 +392,7 @@ public class JointCallingSpark {
             if(bpRegion==null){
                 bpIter++;
                 region.setStart(region.getEnd()+1);
-                region.setEnd(region.getStart()+step);
+                region.setEnd(Math.min(cycleEnd,region.getStart()+step));
                 continue;
             }else{
                 while(bp_reader.readLine() !=null){
@@ -453,7 +457,7 @@ public class JointCallingSpark {
 
             iter++;
             region.setStart(region.getEnd()+1);
-            region.setEnd(region.getStart()+step);
+            region.setEnd(Math.min(cycleEnd,region.getStart()+step));
             if(!options.isKeepCombine()) {
                 if (combineOutLocalFile.isDirectory()) {
                     String[] eles = combineOutLocalFile.list();
