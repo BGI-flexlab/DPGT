@@ -40,7 +40,7 @@ public class GatherVcfs  {
     }
 
     public GatherVcfs() {
-        CREATE_INDEX = true;
+        CREATE_INDEX = false;
     }
 
     protected int doWork(List<File> INPUT,File OUTPUT) {
