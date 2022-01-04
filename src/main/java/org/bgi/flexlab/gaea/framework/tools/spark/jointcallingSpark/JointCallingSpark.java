@@ -471,16 +471,62 @@ public class JointCallingSpark {
             logger.info("current total variants:\t"+totalVariantsNum.value());
         }
 
-        if(options.isMergeChrom()){
-            //merge chr1-22,X,Y,M as default
-            ArrayList<Integer> tmpList=new ArrayList<>();
-            for(int i=1;i<=100;i++){
-                tmpList.add(i);
+        /// merge vcf
+
+
+//        if(options.isMergeChrom()){
+//            //merge chr1-22,X,Y,M as default
+//            ArrayList<Integer> tmpList=new ArrayList<>();
+//            for(int i=1;i<=100;i++){
+//                tmpList.add(i);
+//            }
+//            JavaRDD<Integer> nonsenseRDD2=sc.parallelize(tmpList,26);
+//            nonsenseRDD2.mapPartitionsWithIndex(new MergeToChrom(iter,contigIdx,dBC),true).collect();
+//        }
+
+        // merge  vcf
+        List<File> INPUT=new ArrayList<>();
+
+        File OUTPUT=new File(options.getOutDir()+"/result.vcf.gz");
+        for (int i = 0; i < iter; i++) {
+            File gtDir = new File(options.getOutDir() + "/genotype." + i);
+            if (gtDir.exists() && gtDir.isDirectory()) {
+                boolean breakFlag = false;
+                String[] gtLists = gtDir.list();
+                String prefix = "";
+                for (int j = 0; j < gtLists.length; j++) {
+                    if (gtLists[j].endsWith(".gz")) {
+                        String[] eles = gtLists[j].split("\\.");
+                        if (eles.length == 0) {
+                            logger.error("cannot found spot in file name:" + gtLists[0]);
+                            System.exit(1);
+                        }
+                        prefix = eles[0];
+                        break;
+                    }
+                }
+                String[] poses = prefix.split("_");
+                if (poses.length < 2) {
+                    continue;
+                }
+                for (int j = 0; j < options.getReducerNumber(); j++) {
+                    File gtFile = new File(gtDir + "/" + prefix + "." + j + ".vcf.gz");
+                    if (gtFile.exists()) {
+                        INPUT.add(gtFile);
+                    }
+                }
+
             }
-            JavaRDD<Integer> nonsenseRDD2=sc.parallelize(tmpList,26);
-            nonsenseRDD2.mapPartitionsWithIndex(new MergeToChrom(iter,contigIdx,dBC),true).collect();
         }
+
+        int res=new GatherVcfs().doWork(INPUT,OUTPUT);
+
         sc.stop();
     }
+
+
+
+
+
 
 }

@@ -184,13 +184,25 @@ public class ParseCombineAndGenotypeGVCFs implements Function2<Integer,Iterator<
             log.error("code error2\t"+samplesReader.size()+"\t"+multiMapSampleSize);
             System.exit(1);
         }
-        String outFile=dBC.options.getOutDir()+"/genotype."+cycleIter+"/"+region.getStart()+"_"+region.getEnd()+"."+index+".gz";
+        String outFile=dBC.options.getOutDir()+"/genotype."+cycleIter+"/"+region.getStart()+"_"+region.getEnd()+"."+index+".vcf.gz";
         Path outPath=new Path(outFile);
         FileSystem outFs=outPath.getFileSystem(hadoop_conf);
         if(outFs.exists(outPath)){
             outFs.delete(outPath,true);
         }
         BlockCompressedOutputStream out=new BlockCompressedOutputStream(outFile);
+        if (hFile.exists()) {
+            BufferedReader hfReader = new BufferedReader(new FileReader(mergedHeaderFile));
+            String hfLine;
+            while ((hfLine = hfReader.readLine()) != null) {
+                out.write((hfLine + "\n").getBytes());
+            }
+            hfReader.close();
+        } else {
+            log.error("no header file");
+            System.exit(1);
+        }
+
         long rangeInEachOutFile=(region.getEnd()-region.getStart())/dBC.options.getReducerNumber();
         log.info("range in each out file:\t"+rangeInEachOutFile);
         log.info("current index:\t"+index);
