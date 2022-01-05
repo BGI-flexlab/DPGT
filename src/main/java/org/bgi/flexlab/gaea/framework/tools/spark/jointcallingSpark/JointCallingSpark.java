@@ -10,6 +10,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.util.LongAccumulator;
+import org.apache.spark.sql.SparkSession;
 import org.bgi.flexlab.gaea.data.mapreduce.output.vcf.GaeaVCFOutputFormat;
 import org.bgi.flexlab.gaea.data.structure.location.GenomeLocation;
 import org.bgi.flexlab.gaea.data.structure.vcf.VCFLocalLoader;
@@ -90,6 +91,7 @@ public class JointCallingSpark {
 
         conf.set("spark.rdd.compress","true");
         JavaSparkContext sc = new JavaSparkContext(conf);   //打开spark环境
+        SparkSession spark = SparkSession.builder().config(sc.getConf()).getOrCreate();
         Configuration hadoopConf=sc.hadoopConfiguration();
         File tmpDir=new File(options.getOutDir());
         if(!tmpDir.exists()){
@@ -354,37 +356,65 @@ public class JointCallingSpark {
                     break;
                 }
             }
-            JavaPairRDD<GenomeLongRegion,Integer> variantsRegion = sortedGvcfSamples.flatMapToPair(new ProcessVariantLocus(regions,dBC));
-            //分区
+
+
+            ////
+            //bps setting
+            ArrayList<String> tmpStr1=new ArrayList<>();
+            for(int i=0;i<options.getMapperNumber()*2;i++){
+                tmpStr1.add("a"+String.valueOf(i));
+            }
+            String outputsubBP=options.getOutDir()+"/subbps."+ iter;
+            File outputsubBPdir=new File(outputsubBP);
+            if(!outputsubBPdir.exists()){
+                outputsubBPdir.mkdirs();
+            }
+            JavaRDD<String> nonsenseRDD1=sc.parallelize(tmpStr1,options.getMapperNumber());
+            for (GenomeLocation sigleRegion:regions){
+                nonsenseRDD1.foreachPartition(new ProcessVariantLocus1(sigleRegion,region,iter,dBC));
+            }
+
             String outputBP=options.getOutDir()+"/bps."+String.valueOf(iter);
             File bpDir=new File(outputBP);
-            if(!bpDir.exists() || !bpDir.isDirectory()) {
-                JavaPairRDD<GenomeLongRegion, Integer> partitionedRegion = variantsRegion.partitionBy(new GenomeLocPartitioner(options.getMapperNumber(), region));
-                JavaRDD<GenomeLongRegion> mergedRegion = partitionedRegion.keys().mapPartitions(new MergeRegion(region)).sortBy(x -> x.getStart(), true, 1);
-                mergedRegion.saveAsTextFile("file://" + outputBP);
+
+            BufferedWriter bw = new BufferedWriter(new FileWriter(outputBP));
+            for (int i = 0; i < options.getMapperNumber(); i++) {
+                File file = new File(outputsubBP+"/part."+i);
+                BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
+                String line;
+                while ((line = bufferedReader.readLine()) != null) {
+                    bw.write(line);
+                    bw.newLine();
+                }
+                bufferedReader.close();
             }
-            int codeInspectorIter=0;
-            if(bpDir.isDirectory()){
-                String[] files=bpDir.list();
-                for(String file:files){
-                    if(file.startsWith("part")){
-                        codeInspectorIter++;
+            bw.close();
+            if(outputsubBPdir.exists()) {
+                if (outputsubBPdir.isDirectory()) {
+                    String[] eles = outputsubBPdir.list();
+                    for (String ele : eles) {
+                        File eleFile = new File(outputsubBPdir.getAbsolutePath() + "/" + ele);
+                        eleFile.delete();
                     }
+                    outputsubBPdir.delete();
                 }
             }
-            if(codeInspectorIter>1){
-                logger.error("code error, only one BPs file should be generated");
-                System.exit(1);
-            }
-            String mergedAllBPs="";
-            if(bpDir.isDirectory()){
-                String[] files=bpDir.list();
-                for(String file:files){
-                    if(file.startsWith("part")){
-                        mergedAllBPs=bpDir.getAbsolutePath()+"/"+file;
-                    }
-                }
-            }
+            ////
+
+//            JavaPairRDD<GenomeLongRegion,Integer> variantsRegion = sortedGvcfSamples.flatMapToPair(new ProcessVariantLocus(regions,dBC));
+//
+//            String outputBP=options.getOutDir()+"/bps."+String.valueOf(iter);
+//            File bpDir=new File(outputBP);
+//            if(!bpDir.exists() || !bpDir.isDirectory()) {
+//                JavaPairRDD<GenomeLongRegion, Integer> partitionedRegion = variantsRegion.partitionBy(new GenomeLocPartitioner(options.getMapperNumber(), region));
+//                JavaRDD<GenomeLongRegion> mergedRegion = partitionedRegion.keys().mapPartitions(new MergeRegion(region)).sortBy(x -> x.getStart(), true, 1);
+//                mergedRegion.saveAsTextFile("file://" + outputBP);
+//            }
+
+            /////////////////////
+
+            String mergedAllBPs=outputBP;
+
             BufferedReader bp_reader=new BufferedReader(new FileReader(mergedAllBPs));
             int bpIter=0;
             String bpRegion=bp_reader.readLine();
@@ -521,12 +551,9 @@ public class JointCallingSpark {
 
         int res=new GatherVcfs().doWork(INPUT,OUTPUT);
 
+
         sc.stop();
     }
-
-
-
-
 
 
 }
