@@ -360,8 +360,9 @@ public class JointCallingSpark {
 
             ////
             //bps setting
+            int ｐarallelismNum= Math.max(options.getMapperNumber(),(int) ((region.getEnd()-region.getStart())/1000000));
             ArrayList<String> tmpStr1=new ArrayList<>();
-            for(int i=0;i<options.getMapperNumber()*2;i++){
+            for(int i=0;i<ｐarallelismNum*2;i++){
                 tmpStr1.add("a"+String.valueOf(i));
             }
             String outputsubBP=options.getOutDir()+"/subbps."+ iter;
@@ -369,16 +370,16 @@ public class JointCallingSpark {
             if(!outputsubBPdir.exists()){
                 outputsubBPdir.mkdirs();
             }
-            JavaRDD<String> nonsenseRDD1=sc.parallelize(tmpStr1,options.getMapperNumber());
+            JavaRDD<String> nonsenseRDD1=sc.parallelize(tmpStr1,ｐarallelismNum);
             for (GenomeLocation sigleRegion:regions){
-                nonsenseRDD1.foreachPartition(new ProcessVariantLocus1(sigleRegion,region,iter,dBC));
+                nonsenseRDD1.foreachPartition(new ProcessVariantLocus1(sigleRegion,region,ｐarallelismNum,iter,dBC));
             }
 
             String outputBP=options.getOutDir()+"/bps."+String.valueOf(iter);
             File bpDir=new File(outputBP);
 
             BufferedWriter bw = new BufferedWriter(new FileWriter(outputBP));
-            for (int i = 0; i < options.getMapperNumber(); i++) {
+            for (int i = 0; i < ｐarallelismNum; i++) {
                 File file = new File(outputsubBP+"/part."+i);
                 BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
                 String line;
