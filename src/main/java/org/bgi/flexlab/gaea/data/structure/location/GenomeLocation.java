@@ -63,9 +63,8 @@ public class GenomeLocation implements Comparable<GenomeLocation>, Comparator<Ge
 	protected final String contigName;
 
 	public static final GenomeLocation UNMAPPED = new GenomeLocation((String) null);
-	public static final GenomeLocation WHOLE_GENOME = new GenomeLocation("all");
 
-	public static final boolean isUnmapped(GenomeLocation location) {
+	public static boolean isUnmapped(GenomeLocation location) {
 		return location == UNMAPPED;
 	}
 
@@ -108,11 +107,11 @@ public class GenomeLocation implements Comparable<GenomeLocation>, Comparator<Ge
 		return new GenomeLocation(getContig(), getContigIndex(), start, end);
 	}
 	
-	public static final GenomeLocation createGenomeLocation(String contig,int start, int end,int contigLength) {
+	public static GenomeLocation createGenomeLocation(String contig, int start, int end, int contigLength) {
 		return new GenomeLocation(contig, -1, start, Math.min(end, contigLength));
 	}
 	
-	public static final GenomeLocation createGenomeLocation(String contig,int start, int end,int contigStart,int contigLength) {
+	public static GenomeLocation createGenomeLocation(String contig, int start, int end, int contigStart, int contigLength) {
 		return new GenomeLocation(contig, -1, Math.max(start,contigStart), Math.min(end, contigLength));
 	}
 
@@ -445,8 +444,8 @@ public class GenomeLocation implements Comparable<GenomeLocation>, Comparator<Ge
 		return result;
 	}
 
-	public static final int compareLocatables(GenomeLocation first, GenomeLocation second,
-			SAMSequenceDictionary dictionary) {
+	public static int compareLocatables(GenomeLocation first, GenomeLocation second,
+										SAMSequenceDictionary dictionary) {
 		Utils.nonNull(first);
 		Utils.nonNull(second);
 		Utils.nonNull(dictionary);

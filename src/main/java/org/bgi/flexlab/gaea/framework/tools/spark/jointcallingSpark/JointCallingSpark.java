@@ -5,12 +5,11 @@ import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.variant.vcf.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.util.LongAccumulator;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.util.LongAccumulator;
 import org.bgi.flexlab.gaea.data.mapreduce.output.vcf.GaeaVCFOutputFormat;
 import org.bgi.flexlab.gaea.data.structure.location.GenomeLocation;
 import org.bgi.flexlab.gaea.data.structure.vcf.VCFLocalLoader;
@@ -33,6 +32,7 @@ public class JointCallingSpark {
     private final static String INPUT_LIST = "input.gvcf.list";// added by gc
     private static final Logger logger = LoggerFactory.getLogger(JointCallingSpark.class);
     private static final LinkedHashMap<String, Integer> chrIndex=new LinkedHashMap<>();
+    private static VCFHeader header = null;
     private static GenomeLocation parseRegionFromString(String targetRegion) {
 //        GenomeLocation gloc;
         String ele="";
@@ -53,23 +53,32 @@ public class JointCallingSpark {
                 eles.add(ele);
             }
         }
-        if(eles.size()!=3){
-            logger.error("fail to parse targetRegion, please check the options");
-        }
-        String chr=eles.get(0);
-        if(chrIndex.containsKey(chr)){
-            return new GenomeLocation(chr,chrIndex.get(chr),Integer.parseInt(eles.get(1)),Integer.parseInt(eles.get(2)));
-        }else if(chrIndex.containsValue(Integer.parseInt(chr))){
-            for(Map.Entry<String,Integer> kv:chrIndex.entrySet()){
-                if(kv.getValue()==Integer.parseInt(chr)){
-                    return new GenomeLocation(kv.getKey(),kv.getValue(),Integer.parseInt(eles.get(1)),Integer.parseInt(eles.get(2)));
-                }
+        if (eles.size()==0){
+            if(chrIndex.containsKey(ele)){
+                return new GenomeLocation(ele,chrIndex.get(ele),1,header.getSequenceDictionary().getSequence(ele).getSequenceLength());
+            }else {
+                logger.error("fail to parse targetRegion, please check the options");
+                return null;
             }
-            logger.error("code error");
-        }else{
-            logger.error("no such chromosome name/id:"+chr+", please check the options");
+        }else if (eles.size()==3){
+            String chr=eles.get(0);
+            if(chrIndex.containsKey(chr)){
+                return new GenomeLocation(chr,chrIndex.get(chr),Integer.parseInt(eles.get(1)),Integer.parseInt(eles.get(2)));
+            }else if(chrIndex.containsValue(Integer.parseInt(chr))){
+                for(Map.Entry<String,Integer> kv:chrIndex.entrySet()){
+                    if(kv.getValue()==Integer.parseInt(chr)){
+                        return new GenomeLocation(kv.getKey(),kv.getValue(),Integer.parseInt(eles.get(1)),Integer.parseInt(eles.get(2)));
+                    }
+                }
+                logger.error("code error");
+            }else{
+                logger.error("no such chromosome name/id:"+chr+", please check the options");
+            }
+        }else {
+            logger.error("fail to parse targetRegion, please check the options");
+            return null;
         }
-        logger.error("fail to parse targetRegion, please check the options");
+
         return null;
     }
     public static void main(String[] args) throws IOException {
@@ -83,7 +92,7 @@ public class JointCallingSpark {
         LinkedHashMap<String,Integer> sampleIndex=new LinkedHashMap<>();
         Map<String, String> pathSample = new HashMap<>();
 
-        VCFHeader header = null;
+
         LinkedHashMap<Integer, String> contigs = null;
         SparkConf conf = new SparkConf().setAppName("JointCallingSpark");
 
@@ -501,19 +510,6 @@ public class JointCallingSpark {
             }
             logger.info("current total variants:\t"+totalVariantsNum.value());
         }
-
-        /// merge vcf
-
-
-//        if(options.isMergeChrom()){
-//            //merge chr1-22,X,Y,M as default
-//            ArrayList<Integer> tmpList=new ArrayList<>();
-//            for(int i=1;i<=100;i++){
-//                tmpList.add(i);
-//            }
-//            JavaRDD<Integer> nonsenseRDD2=sc.parallelize(tmpList,26);
-//            nonsenseRDD2.mapPartitionsWithIndex(new MergeToChrom(iter,contigIdx,dBC),true).collect();
-//        }
 
         // merge  vcf
         List<File> INPUT=new ArrayList<>();

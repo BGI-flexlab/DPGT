@@ -103,7 +103,6 @@ public class ParseCombineAndGenotypeGVCFs implements Function2<Integer,Iterator<
             realSmallWindowSize=10;
         }
         String sampleStr = confMap.get(DriverBC.INPUT_ORDER);
-        String[] allSample=sampleStr.split(",");
 
         dBC.pathSample=null;
         System.out.println(formatter.format(new Date())+"\tbefore engine init");

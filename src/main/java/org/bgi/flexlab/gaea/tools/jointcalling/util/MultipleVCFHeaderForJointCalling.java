@@ -1,16 +1,9 @@
 package org.bgi.flexlab.gaea.tools.jointcalling.util;
 
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
-
+import htsjdk.samtools.seekablestream.SeekableStream;
+import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFUtils;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.Path;
@@ -19,45 +12,33 @@ import org.bgi.flexlab.gaea.data.mapreduce.input.vcf.VCFHdfsLoader;
 import org.bgi.flexlab.gaea.data.mapreduce.output.vcf.GaeaVCFOutputFormat;
 import org.bgi.flexlab.gaea.data.mapreduce.output.vcf.VCFHdfsWriter;
 import org.bgi.flexlab.gaea.data.structure.header.GaeaVCFHeader;
-import org.bgi.flexlab.gaea.data.structure.vcf.VCFFileWriter;
-import org.bgi.flexlab.gaea.data.structure.vcf.VCFLocalLoader;
-import org.bgi.flexlab.gaea.data.structure.vcf.VCFLocalWriter;
 import org.bgi.flexlab.gaea.util.FileIterator;
-import org.seqdoop.hadoop_bam.LazyVCFGenotypesContext.HeaderDataCache;
 import org.seqdoop.hadoop_bam.util.VCFHeaderReader;
 import org.seqdoop.hadoop_bam.util.WrapSeekable;
 
-import htsjdk.samtools.seekablestream.SeekableStream;
-import htsjdk.variant.vcf.VCFHeader;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.*;
 
 public class MultipleVCFHeaderForJointCalling extends GaeaVCFHeader implements Serializable {
 	private static final long serialVersionUID = -3352974548797591555L;
 
-	private String HEADER_DEFAULT_PATH = "vcfheader";
-	
-	private String MERGER_HEADER_INFO = "vcfheaderinfo";
+	private final String MERGER_HEADER_INFO = "vcfheaderinfo";
 
 	private int currentIndex = 0;
 
-	//private HashMap<String, Integer> nameIndexs = new HashMap<String, Integer>();
-	private HashMap<Integer, Set<String>> nameHeaders = new HashMap<Integer, Set<String>>();
+	private final HashMap<Integer, Set<String>> nameHeaders = new HashMap<>();
 
-	private HashSet<VCFHeader> headers = new HashSet<VCFHeader>();
+	private final HashSet<VCFHeader> headers = new HashSet<>();
 
 	private FSDataOutputStream outputStream = null;
 
 	private VCFHeader mergeHeader = null;
 	
-	//private HashMap<Integer,HeaderDataCache> vcfHeaderDateCaches = new HashMap<Integer,HeaderDataCache>();
 
 	public MultipleVCFHeaderForJointCalling() {
 	}
 
-	/*public Set<String> getSampleList(String sampleName) {
-		if (nameIndexs.containsKey(sampleName))
-			return getSampleList(nameIndexs.get(sampleName));
-		return null;
-	}*/
 
 	public Set<String> getSampleList(int index) {
 		if (nameHeaders.containsKey(index)) {
@@ -68,23 +49,17 @@ public class MultipleVCFHeaderForJointCalling extends GaeaVCFHeader implements S
 		return null;
 	}
 
-	/*
-	public Integer getIndex(String name) {
-		if (nameIndexs.containsKey(name))
-			return nameIndexs.get(name);
-		return null;
-	}
-	*/
 
 	public void headersConfig(List<Path> paths, String outdir, Configuration conf) {
-		conf.set(GaeaVCFOutputFormat.OUT_PATH_PROP, outdir + "/"+HEADER_DEFAULT_PATH);
+		String HEADER_DEFAULT_PATH = "vcfheader";
+		conf.set(GaeaVCFOutputFormat.OUT_PATH_PROP, outdir + "/"+ HEADER_DEFAULT_PATH);
 		conf.set(MERGER_HEADER_INFO, outdir+"/"+MERGER_HEADER_INFO);
 		
 		getHeaders(paths, outdir, conf);
 		writeMergeHeaders(conf);
 	}
 	public static Set<String> getSampleList(Set<VCFHeader> headers) {
-		Set<String> samples = new TreeSet<String>();
+		Set<String> samples = new TreeSet<>();
 		for (VCFHeader header : headers) {
 			for (String sample : header.getGenotypeSamples()) {
 				samples.add(GaeaGvcfVariantContextUtils.mergedSampleName(null, sample, false));
@@ -124,7 +99,7 @@ public class MultipleVCFHeaderForJointCalling extends GaeaVCFHeader implements S
 		currentIndex = 0;
 		Path outpath = new Path(outdir+"/"+MERGER_HEADER_INFO);
 		for (Path p : paths) {
-			VCFHdfsLoader loader = null;
+			VCFHdfsLoader loader;
 			try {
 				loader = new VCFHdfsLoader(p.toString());
 			} catch (IllegalArgumentException | IOException e) {
@@ -136,7 +111,7 @@ public class MultipleVCFHeaderForJointCalling extends GaeaVCFHeader implements S
 
 			StringBuilder samples = new StringBuilder();
 			for (String sample : loader.getHeader().getSampleNamesInOrder()) {
-				samples.append(sample + ",");
+				samples.append(sample).append(",");
 			}
 
 			writeInfo(outpath, conf, p.getName(), samples);
@@ -161,16 +136,14 @@ public class MultipleVCFHeaderForJointCalling extends GaeaVCFHeader implements S
 		close();
 	}
 
-	private void readHeaderInfo(String outputpath, Configuration conf) {
+	private void readHeaderInfo(String outputpath) {
 		try {
 			FileIterator iterator = new FileIterator(outputpath);
 
 			while (iterator.hasNext()) {
 				String[] str = iterator.next().toString().split("\t");
-				Set<String> samples = new HashSet<String>();
 				String[] sample = str[2].split(",");
-				for (String s : sample)
-					samples.add(s);
+				Set<String> samples = new HashSet<>(Arrays.asList(sample));
 				nameHeaders.put(Integer.parseInt(str[1]), samples);
 			}
 
@@ -178,29 +151,6 @@ public class MultipleVCFHeaderForJointCalling extends GaeaVCFHeader implements S
 		} catch (IOException e) {
 			throw new RuntimeException(" read header info error.");
 		}
-	}
-	
-	public int getIndex(Configuration conf,String fileName) {
-		String outputpath = conf.get(MERGER_HEADER_INFO);
-		int index = -1;
-		try {
-			FileIterator iterator = new FileIterator(outputpath);
-
-			while (iterator.hasNext()) {
-				String[] str = iterator.next().toString().split("\t");
-				
-				if(str[0].equals(fileName)) {
-					index = Integer.parseInt(str[1]);
-					break;
-				}
-			}
-
-			iterator.close();
-		} catch (IOException e) {
-			throw new RuntimeException(" read header info error.");
-		}
-		
-		return index;
 	}
 
 	public void readHeaders(Configuration conf) {
@@ -211,44 +161,18 @@ public class MultipleVCFHeaderForJointCalling extends GaeaVCFHeader implements S
 	
 	public void readHeaderIndex(Configuration conf) {
 		String headerInfo = conf.get(MERGER_HEADER_INFO);
-		readHeaderInfo(headerInfo, conf);
+		readHeaderInfo(headerInfo);
 		this.currentIndex = nameHeaders.size();
-		//parseHeaderDataCache();
 	}
-	
-	private void parseHeaderDataCache() {
-		for(int i = 0 ; i < this.currentIndex ; i++) {
-			Set<String> samples = getSampleList(i);
-			if(samples == null) {
-				throw new UserException("samples null!!");
-			}
-			
-			VCFHeader header = new VCFHeader(mergeHeader.getMetaDataInInputOrder(), samples);
-			
-			HeaderDataCache datacache = new HeaderDataCache();
-			datacache.setHeader(header);
-			System.out.println(i+"\tmergeHeader:\n"+mergeHeader);
-			System.out.println(i+"\theader\t"+header.getSampleNamesInOrder().toString()+"\n"+header);
-			System.out.println(i+"\tdatacache:\n"+datacache);
-			System.out.println(i+"\tname:\n"+datacache.toString());
-			//vcfHeaderDateCaches.put(i, datacache);
-			
-			if(i>0) {
-				System.exit(-1);
-			}
-		}
-	}
-	
-//	public HashMap<Integer,HeaderDataCache> getHeaderDataCache(){
-//		return this.vcfHeaderDateCaches;
-//	}
+
+
 
 	public void readHeader(Path path, Configuration conf) {
-		SeekableStream in = null;
+		SeekableStream in;
 		try {
 			in = WrapSeekable.openPath(path.getFileSystem(conf), path);
 		} catch (IOException e1) {
-			throw new UserException.CouldNotReadInputFile("cann't open path " + path.toString());
+			throw new UserException.CouldNotReadInputFile("cann't open path " + path);
 		}
 		try {
 			this.mergeHeader = VCFHeaderReader.readHeaderFrom(in);
@@ -260,7 +184,7 @@ public class MultipleVCFHeaderForJointCalling extends GaeaVCFHeader implements S
 	}
 	
 	private void writeMergeHeaders(Configuration conf) {
-		VCFHdfsWriter vcfHdfsWriter = null;
+		VCFHdfsWriter vcfHdfsWriter;
 		try {
 			vcfHdfsWriter = new VCFHdfsWriter(conf.get(GaeaVCFOutputFormat.OUT_PATH_PROP), false, false, conf);
 		} catch (IOException e) {
@@ -269,16 +193,7 @@ public class MultipleVCFHeaderForJointCalling extends GaeaVCFHeader implements S
 		vcfHdfsWriter.writeHeader(this.mergeHeader);
 		vcfHdfsWriter.close();
 	}
-	private void writeMergeHeadersLocal(Configuration conf) {
-		VCFLocalWriter vcfHdfsWriter = null;
-		try {
-			vcfHdfsWriter = new VCFLocalWriter(conf.get(GaeaVCFOutputFormat.OUT_PATH_PROP), false, false);
-		} catch (IOException e) {
-			throw new UserException(e.toString());
-		}
-		vcfHdfsWriter.writeHeader(this.mergeHeader);
-		vcfHdfsWriter.close();
-	}
+
 	public int getHeaderSize() {
 		return this.currentIndex;
 	}
@@ -300,16 +215,14 @@ public class MultipleVCFHeaderForJointCalling extends GaeaVCFHeader implements S
 			try {
 				outputStream.close();
 			} catch (IOException e) {
-				throw new RuntimeException("vcf output stream close errpr. " + e.toString());
+				throw new RuntimeException("vcf output stream close errpr. " + e);
 			}
 		}
 	}
 
 	public void clear() {
-		//nameIndexs.clear();
 		nameHeaders.clear();
 		headers.clear();
-		//vcfHeaderDateCaches.clear();
 	}
 
 }

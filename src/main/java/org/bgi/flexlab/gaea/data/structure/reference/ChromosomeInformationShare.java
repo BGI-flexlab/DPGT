@@ -82,9 +82,9 @@ public class ChromosomeInformationShare extends BioMemoryShare {
 			int posi = (i-start+deviation) / capacity;
 			
 			if((i & 0x1) == 0)
-				snps[i-start] = ((bases[posi] >> 3) & 0x1) == 1 ? true : false;
+				snps[i-start] = ((bases[posi] >> 3) & 0x1) == 1;
 			else
-				snps[i-start] = ((bases[posi] >> 7) & 0x1) == 1 ? true : false;
+				snps[i-start] = ((bases[posi] >> 7) & 0x1) == 1;
 		}
 		
 		return snps;

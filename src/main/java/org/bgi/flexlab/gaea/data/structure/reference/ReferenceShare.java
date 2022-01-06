@@ -84,8 +84,8 @@ public class ReferenceShare extends WholeGenomeShare {
 		LineReader in = new LineReader(refin);
 		Text line = new Text();
 
-		String chrFile = "";
-		String[] chrs = new String[3];
+		String chrFile;
+		String[] chrs;
 		while ((in.readLine(line)) != 0) {
 			chrFile = line.toString();
 			chrs = chrFile.split("\t");
