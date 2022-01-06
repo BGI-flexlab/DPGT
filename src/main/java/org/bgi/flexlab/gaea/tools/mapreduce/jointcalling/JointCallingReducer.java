@@ -1,23 +1,18 @@
 package org.bgi.flexlab.gaea.tools.mapreduce.jointcalling;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 import java.util.TreeSet;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.NullWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.bgi.flexlab.gaea.data.mapreduce.output.vcf.GaeaVCFOutputFormat;
 import org.bgi.flexlab.gaea.data.mapreduce.writable.WindowsBasedWritable;
@@ -29,12 +24,10 @@ import org.bgi.flexlab.gaea.data.structure.vcf.VCFLocalLoader;
 import org.bgi.flexlab.gaea.data.variant.filter.VariantRegionFilter;
 import org.bgi.flexlab.gaea.tools.jointcalling.JointCallingEngine;
 import org.bgi.flexlab.gaea.tools.jointcalling.util.MultipleVCFHeaderForJointCalling;
-import org.bgi.flexlab.gaea.util.Utils;
 import org.seqdoop.hadoop_bam.VariantContextWritable;
 import org.seqdoop.hadoop_bam.util.VCFHeaderReader;
 import org.seqdoop.hadoop_bam.util.WrapSeekable;
 
-import htsjdk.samtools.seekablestream.SeekableFileStream;
 import htsjdk.samtools.seekablestream.SeekableStream;
 import htsjdk.variant.variantcontext.CommonInfo;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -113,7 +106,7 @@ public class JointCallingReducer
 			if(options.getMapperMode()) {
 				//JointCallingPrepareOptions options, GenomeLocationParser parser, VCFHeader vcfheader,
 				//MultipleVCFHeaderForJointCalling multiHeaders,String[] sampleArray,ArrayList<ArrayList<String> >multiMapSamples,Configuration conf
-				engine = new JointCallingEngine(options, parser,header,headers,allSample,multiMapSampleNames,conf);
+				engine = new JointCallingEngine(options, parser,header,headers, multiMapSampleNames,conf);
 			}else {
 				engine = new JointCallingEngine(options, parser,headers);
 			}

@@ -109,7 +109,7 @@ public class ParseCombineAndGenotypeGVCFs implements Function2<Integer,Iterator<
         System.out.println(formatter.format(new Date())+"\tbefore engine init");
         dBC.options.setS(dBC.options.STANDARD_CONFIDENCE_FOR_CALLING);
         dBC.options.sets(dBC.options.STANDARD_CONFIDENCE_FOR_EMITTING);
-        JointCallingEngine engine = new JointCallingEngine(dBC.options, parser, header, headers, allSample, dBC.multiMapSampleNames, hadoop_conf);
+        JointCallingEngine engine = new JointCallingEngine(dBC.options, parser, header, headers, dBC.multiMapSampleNames, hadoop_conf);
         System.out.println(formatter.format(new Date())+"\tafter engine init");
         ReferenceShare genomeShare = new ReferenceShare();
         genomeShare.loadChromosomeList(dBC.options.getReference());
