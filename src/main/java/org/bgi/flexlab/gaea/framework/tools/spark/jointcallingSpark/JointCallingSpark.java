@@ -8,7 +8,6 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.sql.SparkSession;
 import org.apache.spark.util.LongAccumulator;
 import org.bgi.flexlab.gaea.data.mapreduce.output.vcf.GaeaVCFOutputFormat;
 import org.bgi.flexlab.gaea.data.structure.location.GenomeLocation;
@@ -100,7 +99,6 @@ public class JointCallingSpark {
 
         conf.set("spark.rdd.compress","true");
         JavaSparkContext sc = new JavaSparkContext(conf);   //打开spark环境
-        SparkSession spark = SparkSession.builder().config(sc.getConf()).getOrCreate();
         Configuration hadoopConf=sc.hadoopConfiguration();
         File tmpDir=new File(options.getOutDir());
         if(!tmpDir.exists()){
