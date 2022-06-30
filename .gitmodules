@@ -1,0 +1,18 @@
+[submodule "src/main/native/vendor/spdlog"]
+	path = src/main/native/vendor/spdlog
+	url = git@github.com:gabime/spdlog.git
+[submodule "src/main/native/vendor/ThreadPool"]
+	path = src/main/native/vendor/ThreadPool
+	url = git@github.com:progschj/ThreadPool.git
+[submodule "src/main/native/vendor/htslib"]
+	path = src/main/native/vendor/htslib
+	url = git@github.com:samtools/htslib.git
+[submodule "src/main/native/vendor/libdeflate"]
+	path = src/main/native/vendor/libdeflate
+	url = git@github.com:ebiggers/libdeflate.git
+[submodule "src/main/native/vendor/eigen"]
+	path = src/main/native/vendor/eigen
+	url = git@gitlab.com:libeigen/eigen.git
+[submodule "src/main/native/vendor/cgranges"]
+	path = src/main/native/vendor/cgranges
+	url = git@github.com:Archieyoung/cgranges.git
