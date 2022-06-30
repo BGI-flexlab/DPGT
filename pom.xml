@@ -961,6 +961,43 @@
       </exclusions>
     </dependency>
     <dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<version>2.6.0-cdh5.6.0</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>commons-cli</artifactId>
+					<groupId>commons-cli</groupId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.xerial.snappy</groupId>
+					<artifactId>snappy-java</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
+			<version>2.6.0-cdh5.6.0</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>commons-cli</artifactId>
+					<groupId>commons-cli</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-hdfs</artifactId>
+			<version>2.6.0-cdh5.6.0</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>commons-cli</artifactId>
+					<groupId>commons-cli</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+    <dependency>
       <groupId>org.bdgenomics.bdg-formats</groupId>
       <artifactId>bdg-formats</artifactId>
       <version>0.5.0</version>
@@ -996,10 +1033,10 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <dependency>
+    <!-- <dependency>
       <groupId>org.bdgenomics.adam</groupId>
-      <artifactId>adam-core-spark2_2.11</artifactId>
-      <version>0.20.0</version>
+      <artifactId>adam-core-spark2_2.12</artifactId>
+      <version>0.27.0</version>
       <scope>compile</scope>
       <exclusions>
         <exclusion>
@@ -1051,7 +1088,7 @@
           <groupId>*</groupId>
         </exclusion>
       </exclusions>
-    </dependency>
+    </dependency> -->
     <dependency>
       <groupId>org.jgrapht</groupId>
       <artifactId>jgrapht-core</artifactId>
@@ -1204,11 +1241,6 @@
       <exclusions>
         <exclusion>
           <artifactId>javax.servlet</artifactId>
-          <groupId>*</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>junit</artifactId>
-          <groupId>junit</groupId>
         </exclusion>
         <exclusion>
           <artifactId>slf4j-jdk14</artifactId>
@@ -1689,19 +1721,17 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <dependency>
-      <groupId>com.sun</groupId>
-      <artifactId>tools</artifactId>
-      <version>1.5.0</version>
-      <scope>system</scope>
-      <systemPath>${java.home}/../lib/tools.jar</systemPath>
-    </dependency>
-    <dependency>
-      <groupId>biz.k11i</groupId>
-      <artifactId>xgboost-predictor</artifactId>
-      <version>0.3.0</version>
-    </dependency>
   </dependencies>
+
+  <repositories>
+		<repository>
+			<id>Cloudera</id>
+			<name>Cloudera Repository</name>
+			<!-- <url>https://repository.cloudera.com/content/repositories/releases/</url> -->
+			<url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+
+		</repository>
+	</repositories>
 
   <build>
     <plugins>

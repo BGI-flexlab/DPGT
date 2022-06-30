@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.Set;
 import org.broadinstitute.hellbender.engine.ReferenceDataSource;
 import org.broadinstitute.hellbender.tools.walkers.annotator.VariantAnnotatorEngine;
+import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.AS_StandardAnnotation;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.samtools.util.Locatable;
@@ -51,7 +52,7 @@ public class GVCFsSyncGenotyper {
 
     private List<Annotation> makeVariantAnnotations() {
         GATKAnnotationArgumentCollection userArgs = new DefaultGATKVariantAnnotationArgumentCollection();
-        GATKAnnotationPluginDescriptor pluginDescriptor = new GATKAnnotationPluginDescriptor(userArgs, Collections.emptyList(), Arrays.asList(StandardAnnotation.class));
+        GATKAnnotationPluginDescriptor pluginDescriptor = new GATKAnnotationPluginDescriptor(userArgs, Collections.emptyList(), Arrays.asList(StandardAnnotation.class, AS_StandardAnnotation.class));
         findPluginsForDescriptor(pluginDescriptor);
         pluginDescriptor.validateAndResolvePlugins();
         return pluginDescriptor.getResolvedInstances();
