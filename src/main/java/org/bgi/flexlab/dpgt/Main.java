@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.SparkConf;
 import java.util.BitSet;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.List;
 
@@ -43,7 +42,9 @@ public class Main {
             refpath, prefix, variantSiteSetData.toByteArray(), chrom, start, end), false).
             collect();
         SimpleInterval interval = new SimpleInterval(chrom, (int)start+1, (int)end+1);
-        GVCFsSyncGenotyper genotyper = new GVCFsSyncGenotyper(refpath, combinedGVCFs, interval);
+        GVCFsSyncGenotyper genotyper = new GVCFsSyncGenotyper(refpath, combinedGVCFs, interval, args[3]);
+
+        genotyper.run();
         
         sc.close();
         logger.info("Done.");

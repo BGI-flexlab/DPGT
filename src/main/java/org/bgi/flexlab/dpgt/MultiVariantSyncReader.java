@@ -1,6 +1,8 @@
 package org.bgi.flexlab.dpgt;
 
 import htsjdk.variant.vcf.VCFFileReader;
+import htsjdk.variant.vcf.VCFHeader;
+import htsjdk.variant.vcf.VCFUtils;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.Locatable;
@@ -21,6 +23,7 @@ public class MultiVariantSyncReader {
     private List<String> vcfpaths = null;
     private ArrayList<VCFFileReader> vcfReaders = null;
     private ArrayList<CloseableIterator<VariantContext>> vcfIters = null;
+    private VCFHeader header = null;
 
     public MultiVariantSyncReader() {}
 
@@ -82,5 +85,17 @@ public class MultiVariantSyncReader {
             }
         }
         return result;
+    }
+
+    public VCFHeader getVCFHeader() {
+        ArrayList<VCFHeader> headers = new ArrayList<>();
+        ArrayList<String> samples = new ArrayList<>();
+        for (VCFFileReader r: vcfReaders) {
+            headers.add(r.getFileHeader());
+            samples.addAll(r.getFileHeader().getSampleNamesInOrder());
+        }
+        return headers.size() > 1 ?
+            new VCFHeader(VCFUtils.smartMergeHeaders(headers, true), samples) :
+            headers.get(0);
     }
 }
