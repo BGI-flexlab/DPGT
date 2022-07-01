@@ -45,6 +45,7 @@ public class Main {
         GVCFsSyncGenotyper genotyper = new GVCFsSyncGenotyper(refpath, combinedGVCFs, interval, args[3]);
 
         genotyper.run();
+        genotyper.stop();
         
         sc.close();
         logger.info("Done.");

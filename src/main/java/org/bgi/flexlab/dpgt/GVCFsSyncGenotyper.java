@@ -53,7 +53,7 @@ public class GVCFsSyncGenotyper {
 
     private FeatureContext emptyFeatureContext = new FeatureContext();
     private ReferenceDataSource reference;
-    private MultiVariantSyncReader reader;
+    private MultiVariantSyncReader reader = null;
     private VariantAnnotatorEngine annotationEngine;
     private GenotypingEngine<?> genotypingEngine;
     private ReferenceConfidenceVariantContextMerger merger;
@@ -137,6 +137,12 @@ public class GVCFsSyncGenotyper {
         }
         if (vcfWriter != null) {
             vcfWriter.close();
+        }
+    }
+
+    public void stop() {
+        if (reader != null) {
+            reader.close();
         }
     }
 
