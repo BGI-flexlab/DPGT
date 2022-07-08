@@ -8,9 +8,9 @@ import org.apache.spark.api.java.function.Function2;
 
 public class VariantSiteFinderSparkFunc implements Function2<Integer, Iterator<String>, Iterator<BitSet>> {
     public String chrom;
-    public long start;
-    public long end;
-    public VariantSiteFinderSparkFunc(String chrom, long start, long end) {
+    public int start;
+    public int end;
+    public VariantSiteFinderSparkFunc(String chrom, int start, int end) {
         this.chrom = chrom;
         this.start = start;
         this.end = end;

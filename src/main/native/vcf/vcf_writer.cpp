@@ -6,6 +6,7 @@
 #include <boost/algorithm/string/predicate.hpp>
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <memory>
 
@@ -67,49 +68,49 @@ void VcfWriter::writeHeader(bcf_hdr_t *hdr)
 void VcfWriter::write(const std::string &v_str, int32_t rid, int64_t start,
     int64_t end)
 {
-    if (fp_->format.format == vcf || fp_->format.format == text_format) {
-        int ret;
-        if (fp_->format.compression != no_compression) {
-            if (bgzf_flush_try(fp_->fp.bgzf, v_str.size()) < 0) {
-                std::cerr << "[VcfWriter::write] IO Error! Failed to flush bgzf"
-                    << std::endl;
-                std::exit(1);
-            }
-            ret = bgzf_write(fp_->fp.bgzf, v_str.c_str(), v_str.size());
-        }
-        else {
-            ret = hwrite(fp_->fp.hfile, v_str.c_str(), v_str.size());
-        }
+    // if (fp_->format.format == vcf || fp_->format.format == text_format) {
+    //     int ret;
+    //     if (fp_->format.compression != no_compression) {
+    //         if (bgzf_flush_try(fp_->fp.bgzf, v_str.size()) < 0) {
+    //             std::cerr << "[VcfWriter::write] IO Error! Failed to flush bgzf"
+    //                 << std::endl;
+    //             std::exit(1);
+    //         }
+    //         ret = bgzf_write(fp_->fp.bgzf, v_str.c_str(), v_str.size());
+    //     }
+    //     else {
+    //         ret = hwrite(fp_->fp.hfile, v_str.c_str(), v_str.size());
+    //     }
         
-        if (ret != static_cast<int>(v_str.size())) {
-            std::cerr << "[VcfWriter::write] IO Error!" << std::endl;
-            std::exit(1);
-        }
+    //     if (ret != static_cast<int>(v_str.size())) {
+    //         std::cerr << "[VcfWriter::write] IO Error!" << std::endl;
+    //         std::exit(1);
+    //     }
 
-        if (fp_->idx) {
-            int tid;
-            if ((tid = hts_idx_tbi_name(fp_->idx, rid,
-                bcf_hdr_id2name(header_, rid))) < 0)
-            {
-                std::cerr << "[VcfWriter::write] Failed to get tabix tid! "
-                    << std::endl;
-                std::exit(1);
-            }
+    //     if (fp_->idx) {
+    //         int tid;
+    //         if ((tid = hts_idx_tbi_name(fp_->idx, rid,
+    //             bcf_hdr_id2name(header_, rid))) < 0)
+    //         {
+    //             std::cerr << "[VcfWriter::write] Failed to get tabix tid! "
+    //                 << std::endl;
+    //             std::exit(1);
+    //         }
 
-            if (hts_idx_push(fp_->idx, tid, start, end,
-                bgzf_tell(fp_->fp.bgzf), 1) < 0)
-            {
-                std::cerr << "[VcfWriter::write] Failed to push hts index!"
-                    << std::endl;
-                std::exit(1);
-            }
-        }
-    } else {
+    //         if (hts_idx_push(fp_->idx, tid, start, end,
+    //             bgzf_tell(fp_->fp.bgzf), 1) < 0)
+    //         {
+    //             std::cerr << "[VcfWriter::write] Failed to push hts index!"
+    //                 << std::endl;
+    //             std::exit(1);
+    //         }
+    //     }
+    // } else {
         kputsn(v_str.c_str(), v_str.size()-1, ks_clear(&tmp_var_ks_));
         if (v_ == nullptr) v_ = bcf_init1();
         vcf_parse(&tmp_var_ks_, header_, v_);
         write(v_);
-    }
+    // }
 }
 
 

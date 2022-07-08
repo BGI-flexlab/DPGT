@@ -183,7 +183,7 @@ VariantStringWithPos ReferenceConfidentVariantMerger::merge(
 
     // TODO build merged variant
     VariantBuilder variant_builder(merged_header, key_maps,
-        loc.tid, loc.start, loc.start, std::move(new_alleles));
+        loc.tid, loc.start, loc.start+new_alleles.front().length(), new_alleles);
     variant_builder.setID(std::move(merged_rsID))
         .setFilter(std::move(merged_filter))
         .setGenotypes(&merged_genotypes)
@@ -205,7 +205,7 @@ VariantStringWithPos ReferenceConfidentVariantMerger::merge(
     }
 
     return {var_str, variant_builder.tid(), variant_builder.start(),
-        variant_builder.end()+1};
+        variant_builder.end()};
 }
 
 

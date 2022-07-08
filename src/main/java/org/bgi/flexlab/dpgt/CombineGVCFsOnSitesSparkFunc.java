@@ -35,7 +35,7 @@ public class CombineGVCFsOnSitesSparkFunc implements Function2<Integer, Iterator
         // call native c++ function to combine gvcfs
         combiner.Combine(vcfpathsArray, refpath, outpath, bytes, chrom, start, end);
         ArrayList<String> result=new ArrayList<>();
-        result.add(outpath);  // make a nonsense return value
+        result.add(outpath);
         return result.iterator();
     }
 }

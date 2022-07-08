@@ -12,6 +12,8 @@ import java.util.LinkedHashSet;
 import java.util.HashMap;
 import java.util.TreeSet;
 import java.io.File;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
 import org.broadinstitute.hellbender.engine.ReferenceDataSource;
 import org.broadinstitute.hellbender.tools.walkers.ReferenceConfidenceVariantContextMerger;
@@ -21,6 +23,7 @@ import org.broadinstitute.hellbender.utils.SimpleInterval;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.vcf.VCFConstants;
+import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
@@ -29,6 +32,7 @@ import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.cmdline.GATKPlugin.DefaultGATKVariantAnnotationArgumentCollection;
 import org.broadinstitute.hellbender.cmdline.GATKPlugin.GATKAnnotationArgumentCollection;
 import org.broadinstitute.hellbender.cmdline.GATKPlugin.GATKAnnotationPluginDescriptor;
+import org.broadinstitute.hellbender.cmdline.argumentcollections.DbsnpArgumentCollection;
 import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.hellbender.tools.walkers.genotyper.OutputMode;
 import org.broadinstitute.hellbender.tools.walkers.genotyper.UnifiedArgumentCollection;
@@ -48,6 +52,7 @@ import org.broadinstitute.hellbender.engine.FeatureContext;
 
 
 public class GVCFsSyncGenotyper {
+    private static final Logger logger = LoggerFactory.getLogger(GVCFsSyncGenotyper.class);
     public static final String PHASED_HOM_VAR_STRING = "1|1";
     private static final String GVCF_BLOCK = "GVCFBlock";
 
@@ -60,20 +65,24 @@ public class GVCFsSyncGenotyper {
     private File outputFile;
     private VariantContextWriter vcfWriter = null;
 
+    private DbsnpArgumentCollection dbsnp = new DbsnpArgumentCollection();
+
     // the INFO field annotation key names to remove
     private final List<String> infoFieldAnnotationKeyNamesToRemove = new ArrayList<>();
 
     private final boolean includeNonVariants = false;
     private GenotypeCalculationArgumentCollection genotypeArgs = new GenotypeCalculationArgumentCollection();
 
-    public GVCFsSyncGenotyper(final String refpath, final List<String> vcfpaths, final SimpleInterval interval, final String outpath) {
+    public GVCFsSyncGenotyper() {}
+
+    public GVCFsSyncGenotyper(final String refpath, final List<String> vcfpaths, final String vcfHeader, final SimpleInterval interval, final String outpath) {
         // init reference
         reference = ReferenceDataSource.of(Paths.get(refpath));
         reader = new MultiVariantSyncReader();
-        reader.open(vcfpaths);
+        reader.open(vcfpaths, vcfHeader);
         reader.query(interval);
         List<Annotation> annotations = makeVariantAnnotations();
-        annotationEngine = new VariantAnnotatorEngine(annotations, null, Collections.emptyList(), false);
+        annotationEngine = new VariantAnnotatorEngine(annotations, dbsnp.dbsnp, Collections.emptyList(), false);
 
         // Request INFO field annotations inheriting from RankSumTest and RMSAnnotation added to remove list
         for ( final InfoFieldAnnotation annotation :  annotationEngine.getInfoAnnotations() ) {
@@ -100,6 +109,44 @@ public class GVCFsSyncGenotyper {
         setupVCFWriter(inputVCFHeader, samples);
     }
 
+    /**
+     * make combined vcf header for genotyping by add annotation and genotyping header lines
+     * @param vcfHeaderPath combined vcf header for input vcfs
+     * @return combined vcf header for genotyping 
+     */
+    public VCFHeader makeCombinedHeaderForGenotyping(final String vcfHeaderPath) {
+        List<Annotation> annotations = makeVariantAnnotations();
+        annotationEngine = new VariantAnnotatorEngine(annotations, null, Collections.emptyList(), false);
+
+        VCFFileReader reader = new VCFFileReader(Paths.get(vcfHeaderPath));
+        final VCFHeader inputVCFHeader = reader.getHeader();
+        final IndexedSampleList samples = new IndexedSampleList(inputVCFHeader.getSampleNamesInOrder());
+        // We only want the engine to generate the AS_QUAL key if we are using AlleleSpecific annotations.
+        genotypingEngine = new MinimalGenotypingEngine(createUAC(), samples, new GeneralPloidyFailOverAFCalculatorProvider(genotypeArgs), annotationEngine.isRequestedReducibleRawKey(GATKVCFConstants.AS_QUAL_KEY));
+
+        final Set<VCFHeaderLine> headerLines = new LinkedHashSet<>(inputVCFHeader.getMetaDataInInputOrder());
+
+        // Remove GCVFBlocks
+        headerLines.removeIf(vcfHeaderLine -> vcfHeaderLine.getKey().startsWith(GVCF_BLOCK));
+
+        headerLines.addAll(annotationEngine.getVCFAnnotationDescriptions(false));
+        headerLines.addAll(genotypingEngine.getAppropriateVCFInfoHeaders());
+
+        // add headers for annotations added by this tool
+        headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_COUNT_KEY));
+        headerLines.add(GATKVCFHeaderLines.getInfoLine(GATKVCFConstants.MLE_ALLELE_FREQUENCY_KEY));
+        headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.REFERENCE_GENOTYPE_QUALITY));
+        headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));   // needed for gVCFs without DP tags
+
+        final Set<String> sampleNameSet = samples.asSetOfSamples();
+        final VCFHeader combinedVCFHeader = new VCFHeader(headerLines, new TreeSet<>(sampleNameSet));
+
+        vcfWriter.close();
+        reader.close();
+
+        return combinedVCFHeader;
+    }
+
     private void setupVCFWriter(VCFHeader inputVCFHeader, SampleList samples) {
         final Set<VCFHeaderLine> headerLines = new LinkedHashSet<>(inputVCFHeader.getMetaDataInInputOrder());
 
@@ -115,17 +162,17 @@ public class GVCFsSyncGenotyper {
         headerLines.add(GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.REFERENCE_GENOTYPE_QUALITY));
         headerLines.add(VCFStandardHeaderLines.getInfoLine(VCFConstants.DEPTH_KEY));   // needed for gVCFs without DP tags
 
-        // not support dbsnp annotation for now
-        // if ( dbsnp.dbsnp != null  ) {
-        //     VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
-        // }
+        if ( dbsnp.dbsnp != null  ) {
+            VCFStandardHeaderLines.addStandardInfoLines(headerLines, true, VCFConstants.DBSNP_KEY);
+        }
 
         vcfWriter = GATKVariantContextUtils.createVCFWriter(outputFile, null, false);
 
         final Set<String> sampleNameSet = samples.asSetOfSamples();
         final VCFHeader vcfHeader = new VCFHeader(headerLines, new TreeSet<>(sampleNameSet));
-        vcfWriter.writeHeader(vcfHeader);
+        // vcfWriter.writeHeader(vcfHeader);
     }
+
 
     public void run() {
         ArrayList<VariantContext> variantContexts;
@@ -388,6 +435,7 @@ public class GVCFsSyncGenotyper {
     private UnifiedArgumentCollection createUAC() {
         final UnifiedArgumentCollection uac = new UnifiedArgumentCollection();
         uac.genotypeArgs = new GenotypeCalculationArgumentCollection(genotypeArgs);
+        uac.genotypeArgs.useOldAFCalculator = true;
 
         //whether to emit non-variant sites is not contained in genotypeArgs and must be passed to uac separately
         //Note: GATK3 uses OutputMode.EMIT_ALL_CONFIDENT_SITES when includeNonVariants is requested

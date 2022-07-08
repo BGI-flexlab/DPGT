@@ -3,10 +3,14 @@ package org.broadinstitute.hellbender.tools.walkers.genotyper.afcalc;
 import htsjdk.variant.variantcontext.Allele;
 import htsjdk.variant.variantcontext.GenotypeLikelihoods;
 import htsjdk.variant.variantcontext.VariantContext;
+import htsjdk.variant.vcf.VCFConstants;
+
 import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.Utils;
+import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 
 import java.util.*;
+import static java.lang.Math.pow;
 
 /**
  * Reference implementation of multi-allelic EXACT model.  Extremely slow for many alternate alleles.
@@ -27,31 +31,117 @@ public final class ReferenceDiploidExactAFCalculator extends ExactAFCalculator {
         final int numAlternateAlleles = vc.getNAlleles() - 1;
 
         final List<double[]> genotypeLikelihoods = getGLs(vc.getGenotypes(), true, vc.hasAllele(Allele.NON_REF_ALLELE));
-        final int numSamples = genotypeLikelihoods.size()-1;
-        final int numChr = 2*numSamples;
+        // gatk code start
+        // final int numSamples = genotypeLikelihoods.size()-1;
+        // final int numChr = 2*numSamples;
 
-        // queue of AC conformations to process
-        final Deque<ExactACset> ACqueue = new LinkedList<>();
+        // // queue of AC conformations to process
+        // final Deque<ExactACset> ACqueue = new LinkedList<>();
 
-        // mapping of ExactACset indexes to the objects
-        final Map<ExactACcounts, ExactACset> indexesToACset = new LinkedHashMap<>(numChr+1);
+        // // mapping of ExactACset indexes to the objects
+        // final Map<ExactACcounts, ExactACset> indexesToACset = new LinkedHashMap<>(numChr+1);
 
-        // add AC=0 to the queue
-        final int[] zeroCounts = new int[numAlternateAlleles];
-        final ExactACset zeroSet = new ExactACset(numSamples+1, new ExactACcounts(zeroCounts));
-        ACqueue.add(zeroSet);
-        indexesToACset.put(zeroSet.getACcounts(), zeroSet);
+        // // add AC=0 to the queue
+        // final int[] zeroCounts = new int[numAlternateAlleles];
+        // final ExactACset zeroSet = new ExactACset(numSamples+1, new ExactACcounts(zeroCounts));
+        // ACqueue.add(zeroSet);
+        // indexesToACset.put(zeroSet.getACcounts(), zeroSet);
 
-        while ( !ACqueue.isEmpty() ) {
+        // while ( !ACqueue.isEmpty() ) {
 
-            // compute log10Likelihoods
-            final ExactACset set = ACqueue.remove();
+        //     // compute log10Likelihoods
+        //     final ExactACset set = ACqueue.remove();
 
-            calculateAlleleCountConformation(set, genotypeLikelihoods, numChr, ACqueue, indexesToACset, log10AlleleFrequencyPriors,stateTracker);
+        //     calculateAlleleCountConformation(set, genotypeLikelihoods, numChr, ACqueue, indexesToACset, log10AlleleFrequencyPriors,stateTracker);
 
-            // clean up memory
-            indexesToACset.remove(set.getACcounts());
+        //     // clean up memory
+        //     indexesToACset.remove(set.getACcounts());
+        // }
+        // gatk code end
+        
+        // EM algorithm by gongchun
+        final int numSamples3 = genotypeLikelihoods.size()-1;
+        final int numChr3 = 2*numSamples3;
+        double af=0.5;
+        int iter=0;
+        double lastAf=0;
+        for(int j=1;j<=numSamples3;j++) {
+            double[] gls = genotypeLikelihoods.get(j);
+            for (int k = 0; k < 3; k++) {
+                gls[k] = pow(10, gls[k]);
+            }
         }
+        for(int i=1;i<=100;i++){
+            double totalSum=0;
+            for(int j=1;j<=numSamples3;j++) {
+                double[] gls = genotypeLikelihoods.get(j);
+                double fenzi=0+1*gls[1]*2*af*(1-af)+2*gls[2]*af*af;
+                double fenmu=gls[0]*(1-af)*(1-af)+gls[1]*2*af*(1-af)+gls[2]*af*af;
+                totalSum+=fenzi/fenmu;
+            }
+            af=totalSum/numChr3;
+            if(Math.abs(af-lastAf)<1.0/(numChr3*100) || af<1.0/(numChr3*5)){
+                iter=i;
+                break;
+            }
+            lastAf=af;
+        }
+        double dAC=af*numChr3;
+        int ac=(int)(dAC+0.5d);
+        int acCutoff=100;
+        final List<double[]> genotypeLikelihoods3 = getGLs(vc.getGenotypes(), true, vc.hasAllele(Allele.NON_REF_ALLELE));
+        final LinkedList<ExactACset> ACqueue3 = new LinkedList<>();
+
+        final HashMap<ExactACcounts, ExactACset> indexesToACset3 = new HashMap<>(numChr3+1);
+
+        final int[] zeroCounts3 = new int[numAlternateAlleles];
+        ExactACset zeroSet3 = new ExactACset(numSamples3+1, new ExactACcounts(zeroCounts3));
+        ACqueue3.add(zeroSet3);
+        indexesToACset3.put(zeroSet3.getACcounts(), zeroSet3);
+        while ( !ACqueue3.isEmpty() ) {
+            stateTracker.incNEvaluations();
+            final ExactACset set = ACqueue3.remove();
+            calculateAlleleCountConformation(set, genotypeLikelihoods3, numChr3, ACqueue3,
+                    indexesToACset3, log10AlleleFrequencyPriors,stateTracker);
+            indexesToACset3.remove(set.getACcounts());
+            if(stateTracker.getNEvaluations()>=10 && ac>acCutoff){
+                break;
+            }
+        }
+        if(!ACqueue3.isEmpty()) {
+            int[] updateAC = new int[1];
+            updateAC[0] = stateTracker.getNEvaluations() - 2;
+            int startAC=updateAC[0];
+            if (ac > acCutoff) {
+                double curMle=stateTracker.log10MLE;
+                double virtualMLE = curMle > -2.0 ? curMle * 0.5 : -2.0;
+                double interval = (virtualMLE - curMle) / (ac - startAC);
+
+                for(int i=0;i<ac-startAC;i++) {
+                    updateAC[0]++;
+                    double newMle = stateTracker.log10MLE + interval;
+                    stateTracker.updateMLEifNeeded(newMle, updateAC);
+                    newMle += log10AlleleFrequencyPriors[updateAC[0]];
+                    stateTracker.updateMAPifNeeded(newMle, updateAC);
+                    stateTracker.incNEvaluations();
+                    if(i==ac-startAC-1){
+                        for(int j=0;j<3;j++) {
+                            curMle=stateTracker.log10MLE;
+                            newMle = curMle - 1.5 * interval;
+                            updateAC[0]++;
+                            if(updateAC[0]>numChr3){
+                                break;
+                            }
+                            stateTracker.updateMLEifNeeded(newMle, updateAC);
+                            newMle += log10AlleleFrequencyPriors[updateAC[0]];
+                            stateTracker.updateMAPifNeeded(newMle, updateAC);
+                            stateTracker.incNEvaluations();
+                        }
+                    }
+                }
+            }
+        }
+        // EM algorithm by gongchun end
 
         return getResultFromFinalState(vc, log10AlleleFrequencyPriors, stateTracker);
     }

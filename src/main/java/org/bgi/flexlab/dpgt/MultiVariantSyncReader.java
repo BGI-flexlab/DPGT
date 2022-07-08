@@ -13,6 +13,8 @@ import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import breeze.linalg.where;
+
 /**
  * A MultiVariantSyncReader is a reader for reading one variant record from each
  * of the input vcf file and returning a list of variant records at a time.
@@ -22,12 +24,13 @@ public class MultiVariantSyncReader {
     private static final Logger logger = LoggerFactory.getLogger(MultiVariantSyncReader.class);
     private List<String> vcfpaths = null;
     private ArrayList<VCFFileReader> vcfReaders = null;
+    private ArrayList<VariantContext> frontVCs = null;
     private ArrayList<CloseableIterator<VariantContext>> vcfIters = null;
     private VCFHeader header = null;
 
     public MultiVariantSyncReader() {}
 
-    public void open(final List<String> vcfpaths) {
+    public void open(final List<String> vcfpaths, final String vcfHeader) {
         this.vcfpaths = vcfpaths;
         vcfReaders = new ArrayList<>();
         vcfIters = new ArrayList<>();
@@ -36,6 +39,8 @@ public class MultiVariantSyncReader {
             vcfReaders.add(reader);
             vcfIters.add(reader.iterator());
         }
+        VCFFileReader reader = new VCFFileReader(Paths.get(vcfHeader));
+        header = reader.getHeader();
     }
 
     public void close() {
@@ -53,22 +58,27 @@ public class MultiVariantSyncReader {
     public void query(final String chrom, final int start, final int end) {
         int n = 0;
         for (VCFFileReader reader: vcfReaders) {
-            reader.query(chrom, start, end);
-            vcfIters.set(n, reader.iterator());
+            vcfIters.set(n, reader.query(chrom, start, end));
             ++n;
         }
+        frontVCs = getFrontVCs(start);
     }
 
     public void query(final Locatable locatable) {
         int n = 0;
         for (VCFFileReader reader: vcfReaders) {
-            reader.query(locatable);
-            vcfIters.set(n, reader.iterator());
+            vcfIters.set(n, reader.query(locatable));
             ++n;
         }
+        frontVCs = getFrontVCs(locatable.getStart());
     }
 
     public ArrayList<VariantContext> read() {
+        if (frontVCs != null && !frontVCs.isEmpty()) {
+            ArrayList<VariantContext> result = new ArrayList<>(frontVCs);
+            frontVCs.clear();
+            return result;
+        }
         ArrayList<VariantContext> result = new ArrayList<>();
         CloseableIterator<VariantContext> firstIter = vcfIters.get(0);
         if (firstIter.hasNext()) {
@@ -88,14 +98,26 @@ public class MultiVariantSyncReader {
     }
 
     public VCFHeader getVCFHeader() {
-        ArrayList<VCFHeader> headers = new ArrayList<>();
-        ArrayList<String> samples = new ArrayList<>();
-        for (VCFFileReader r: vcfReaders) {
-            headers.add(r.getFileHeader());
-            samples.addAll(r.getFileHeader().getSampleNamesInOrder());
-        }
-        return headers.size() > 1 ?
-            new VCFHeader(VCFUtils.smartMergeHeaders(headers, true), samples) :
-            headers.get(0);
+        return header;
     }
+
+    /**
+     * get variants at the front of query region, variant start outside of query
+     * start (variant.start < query.start) will be skipped
+     * @return
+     */
+    private ArrayList<VariantContext> getFrontVCs(int start) {
+        ArrayList<VariantContext> results = new ArrayList<>();
+        for (CloseableIterator<VariantContext> iter: vcfIters) {
+            while(iter.hasNext()) {
+                VariantContext vc = iter.next();
+                if (vc.getStart() >= start) {
+                    results.add(vc);
+                    break;
+                }
+            }
+        }
+        return results;
+    }
+
 }

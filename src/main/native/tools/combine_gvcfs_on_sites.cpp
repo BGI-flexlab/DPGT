@@ -139,7 +139,7 @@ VariantStringWithPos CombineGVCFsOnSites::referenceBlockMerge(
     }
 
     VariantBuilder variant_builder(getMergedHeader(), getKeyMaps(),
-        tid_, site, site, std::move(alleles_to_use));
+        tid_, site, site+1, std::move(alleles_to_use));
     variant_builder.setAttributes(&shared_attributes).setGenotypes(
         &merged_genotypes);
     variant_builder.makeString(ks_clear(&tmp_var_ks_));
@@ -154,5 +154,5 @@ VariantStringWithPos CombineGVCFsOnSites::referenceBlockMerge(
 
     std::string var_str = ks_c_str(&tmp_var_ks_);
     return {var_str, variant_builder.tid(), variant_builder.start(),
-        variant_builder.end()+1};
+        variant_builder.end()};
 }
