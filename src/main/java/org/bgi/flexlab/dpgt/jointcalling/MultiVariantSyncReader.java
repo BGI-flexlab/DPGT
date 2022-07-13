@@ -1,4 +1,4 @@
-package org.bgi.flexlab.dpgt;
+package org.bgi.flexlab.dpgt.jointcalling;
 
 import htsjdk.variant.vcf.VCFFileReader;
 import htsjdk.variant.vcf.VCFHeader;

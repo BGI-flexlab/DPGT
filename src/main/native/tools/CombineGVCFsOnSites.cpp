@@ -6,7 +6,7 @@
 #include "tools/combine_gvcfs_on_sites.hpp"
 
 
-JNIEXPORT void JNICALL Java_org_bgi_flexlab_dpgt_CombineGVCFsOnSites_Combine(
+JNIEXPORT void JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_CombineGVCFsOnSites_Combine(
     JNIEnv *env, jobject java_this, jobjectArray vcfpaths, jstring refpath,
     jstring outpath, jbyteArray bytes, jstring chrom, jlong start, jlong end)
 {

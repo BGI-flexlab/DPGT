@@ -1,4 +1,4 @@
-package org.bgi.flexlab.dpgt;
+package org.bgi.flexlab.dpgt.jointcalling;
 import java.util.BitSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

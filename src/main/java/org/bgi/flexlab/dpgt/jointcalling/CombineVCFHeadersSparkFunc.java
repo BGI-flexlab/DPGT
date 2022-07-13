@@ -1,4 +1,4 @@
-package org.bgi.flexlab.dpgt;
+package org.bgi.flexlab.dpgt.jointcalling;
 
 import java.util.*;
 import java.util.Iterator;

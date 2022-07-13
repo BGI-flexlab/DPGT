@@ -66,7 +66,7 @@ public final class FeatureInput<T extends Feature> extends GATKPathSpecifier imp
      *
      * @param rawArgumentValue String of the form "logical_name:feature_file" or "feature_file"
      */
-    FeatureInput(final String rawArgumentValue) {
+    public FeatureInput(final String rawArgumentValue) {
         super(rawArgumentValue);
         Utils.nonNull(rawArgumentValue, "rawArgumentValue");
     }
@@ -77,7 +77,7 @@ public final class FeatureInput<T extends Feature> extends GATKPathSpecifier imp
      * This constructor is meant to be called only by the engine and test classes,
      * which is why it has package access.
      */
-    FeatureInput(final String featurePath, final String name) {
+    public FeatureInput(final String featurePath, final String name) {
         this(featurePath, name, Collections.emptyMap());
     }
 

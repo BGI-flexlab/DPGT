@@ -172,9 +172,7 @@ VcfReader &VcfReader::Queryi(int32_t tid, int64_t start, int64_t end) {
             }
             tid = tbx_name2id(tbx_idx_, name);
             if (tid < 0) {
-                std::cerr << "[VcfReader::Queryi] Error! Failed to convert"
-                    " name:" << name << " to tabix tid" << std::endl;
-                std::exit(1);
+                itr_ = nullptr;
             }
             itr_ = tbx_itr_queryi(tbx_idx_, tid, start, end+1);
         }
@@ -182,11 +180,6 @@ VcfReader &VcfReader::Queryi(int32_t tid, int64_t start, int64_t end) {
     else
     {
         itr_ = bcf_itr_queryi(bcf_idx_, tid, start, end+1);
-    }
-    if (!itr_) {
-        std::cerr << "[VcfReader::Queryi] Error! Could not query: "
-            << tid << ":" << start + 1 << "-" << end + 1 << std::endl;
-        std::exit(1);
     }
     return *this;
 }
@@ -218,8 +211,8 @@ VcfReader &VcfReader::Querys(
     // } else {
     tid = bcf_hdr_name2id(header_, chrom.c_str());
     if (tid == -1) {
-        std::cerr << "[VcfReader::Querys] Error! chrom not present in "
-            << "this file." << std::endl;
+        std::cerr << "[VcfReader::Querys] Error! chrom " << chrom
+            << " not present in vcf/bcf header " << std::endl;
         std::exit(1);
     }
     // }

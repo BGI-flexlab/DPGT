@@ -7,7 +7,7 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
-JNIEXPORT jbyteArray JNICALL Java_org_bgi_flexlab_dpgt_VariantSiteFinder_FindVariantSite
+JNIEXPORT jbyteArray JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_VariantSiteFinder_FindVariantSite
     (JNIEnv * env, jobject java_this, jobjectArray vcfpaths, jstring chrom, jlong start, jlong end)
 {
     int vcf_count = env->GetArrayLength(vcfpaths);
