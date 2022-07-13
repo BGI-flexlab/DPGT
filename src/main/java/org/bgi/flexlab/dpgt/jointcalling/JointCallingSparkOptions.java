@@ -29,7 +29,7 @@ public class JointCallingSparkOptions implements Serializable {
     // argument parser
     private Options options = new Options();
     private CommandLine cmdLine;
-    private CommandLineParser parser = new DefaultParser();
+    private CommandLineParser parser = new PosixParser();
     private HelpFormatter helpFormatter = new HelpFormatter();
 
     // program meta data

@@ -20,9 +20,16 @@ public class CombineVCFHeadersSparkFunc implements Function2<Integer, Iterator<S
     }
 
     @Override public Iterator<String> call(Integer idx, Iterator<String> vcfpathIter) throws Exception {
+        ArrayList<String> vcfpaths = new ArrayList<>();
+        while(vcfpathIter.hasNext()) {
+            vcfpaths.add(vcfpathIter.next());
+        }
+        String[] vcfpathsArray  = new String[vcfpaths.size()];
+        vcfpaths.toArray(vcfpathsArray);
+
         String output = this.outdir + "/header." + idx + ".vcf.gz";
-        CombineVCFHeader combiner = new CombineVCFHeader();
-        combiner.call(vcfpathIter, output);
+        VCFHeaderCombiner combiner = new VCFHeaderCombiner();
+        combiner.Combine(vcfpathsArray, output);
         ArrayList<String> returnValue=new ArrayList<>();
         returnValue.add(output);
         return returnValue.iterator();

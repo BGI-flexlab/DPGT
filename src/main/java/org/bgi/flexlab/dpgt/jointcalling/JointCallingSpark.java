@@ -23,7 +23,7 @@ import org.apache.commons.io.FileUtils;
 
 public class JointCallingSpark {
     private static final Logger logger = LoggerFactory.getLogger(JointCallingSpark.class);
-    
+
     private static final String HEADER_DIR = "header";  // outdir/header
     private static final String GENOTYPE_HEADER = "genotype_header.vcf.gz";  // outdir/header/genotype_header.vcf.gz
     private static final String COMBINE_GVCFS_PREFIX = "combine."; // outdir/combine.idx
@@ -47,7 +47,7 @@ public class JointCallingSpark {
         jcOptions.parse(args);
         List<SimpleInterval> intervalsToTravers = jcOptions.getIntervalsToTravers();
 
-        SparkConf conf = new SparkConf().setAppName("VariantSiteFinder").setMaster("local[10]");
+        SparkConf conf = new SparkConf().setAppName("VariantSiteFinder");
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc.textFile(jcOptions.input, jcOptions.numCombinePartitions);
@@ -122,9 +122,11 @@ public class JointCallingSpark {
     private static VCFHeader combineVCFHeaders(JavaRDD<String> vcfpathsRDD, final String outdir, final GenotypeCalculationArgumentCollection genotypeArgs) {
         List<String> combinedHeaders = vcfpathsRDD.mapPartitionsWithIndex(new CombineVCFHeadersSparkFunc(outdir), false).collect();
         // combine headers of each partition to generate combined header for all input vcfs
-        CombineVCFHeader combiner = new CombineVCFHeader();
+        VCFHeaderCombiner combiner = new VCFHeaderCombiner();
         String combinedHeader = outdir+"/header.vcf.gz";
-        combiner.call(combinedHeaders.iterator(), combinedHeader);
+        String[] combinedHeadersArray = new String[combinedHeaders.size()];
+        combinedHeaders.toArray(combinedHeadersArray);
+        combiner.Combine(combinedHeadersArray, combinedHeader);
 
         // make combined header for genotyping by add genotyping specific headers
         GVCFsSyncGenotyper genotyper = new GVCFsSyncGenotyper();

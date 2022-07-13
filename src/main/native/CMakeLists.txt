@@ -106,146 +106,7 @@ endif (EXISTS ${HTSLIB_LIB})
 find_package(Boost 1.74 REQUIRED COMPONENTS filesystem)
 include_directories(${Boost_INCLUDE_DIRS})
 
-
 add_subdirectory(vendor/spdlog)
-
-
-add_executable(test_vcf_reader
-    vcf/vcf_reader.cpp
-    vcf/vcf_ibuffer.cpp
-    test/test_vcf_reader.cpp)
-
-target_link_libraries(test_vcf_reader
-    ${HTSLIB_LIB}
-    ${LIBDEFLATE_LIB}
-    z m bz2 lzma pthread curl ssl crypto)
-
-
-add_executable(grouper
-    vcf/hts_vcf_utils.cpp
-    vcf/vcf_reader.cpp
-    vcf/vcf_ibuffer.cpp
-    vcf/multi_vcf_reader.cpp
-    vcf/vcf_constants.cpp
-    vcf/variant_context.cpp
-    vcf/allele.cpp
-    test/test_multi_vcf_group_on_start.cpp)
-
-target_link_libraries(grouper
-    ${HTSLIB_LIB}
-    ${LIBDEFLATE_LIB}
-    z m bz2 lzma pthread curl ssl crypto)
-
-add_executable(test_genotype_count_tables
-    common/utils.cpp
-    common/math_utils.cpp
-    vcf/vcf_constants.cpp
-    genotyper/genotype_allele_counts.cpp
-    genotyper/genotype_likelihood_calculators.cpp
-    test/test_genotype_count_tables.cpp)
-
-target_link_libraries(test_genotype_count_tables
-    ${HTSLIB_LIB}
-    ${LIBDEFLATE_LIB}
-    ${Boost_LIBRARIES})
-
-
-add_executable(get_vcf_formats
-    vcf/vcf_reader.cpp
-    test/test_get_vcf_formats.cpp)
-
-target_link_libraries(get_vcf_formats
-    ${HTSLIB_LIB}
-    ${LIBDEFLATE_LIB}
-    z m bz2 lzma pthread curl ssl crypto)
-
-add_executable(get_fmt_kvs
-    vcf/vcf_reader.cpp
-    test/test_get_fmt_kvs.cpp)
-
-target_link_libraries(get_fmt_kvs
-    ${HTSLIB_LIB}
-    ${LIBDEFLATE_LIB}
-    z m bz2 lzma pthread curl ssl crypto)
-
-add_executable(test_vcf_attribute
-    vcf/vcf_constants.cpp
-    vcf/vcf_reader.cpp
-    vcf/vcf_attribute.cpp
-    test/test_vcf_attribute.cpp)
-
-target_link_libraries(test_vcf_attribute
-    ${HTSLIB_LIB}
-    ${LIBDEFLATE_LIB}
-    z m bz2 lzma pthread curl ssl crypto)
-
-
-add_executable(combine-gvcfs
-    common/cached_ref_seq.cpp
-    common/histogram.cpp
-    common/simple_interval.cpp
-    common/fastx_seq.cpp
-    common/fastx_suffix.cpp
-    common/int_to_double_cache.cpp
-    common/math_utils.cpp
-    common/reference_context.cpp
-    common/sequence_dictionary.cpp
-    common/simple_interval.cpp
-    common/utils.cpp
-    genotyper/genotype_allele_counts.cpp
-    genotyper/genotype_likelihood_calculator.cpp
-    genotyper/genotype_likelihood_calculators.cpp
-    genotyper/genotype_likelihoods.cpp
-    genotyper/genotype.cpp
-    genotyper/flat_genotype.cpp
-    tools/combine_gvcfs.cpp
-    tools/multi_variant_group_on_start.cpp
-    tools/reference_confident_variant_merger.cpp
-    vcf/vcf_id_table.cpp
-    vcf/allele.cpp
-    vcf/gatk_vcf_constants.cpp
-    vcf/vcf_constants.cpp
-    vcf/hts_vcf_utils.cpp
-    vcf/multi_vcf_reader.cpp
-    vcf/variant_builder.cpp
-    vcf/variant_context_utils.cpp
-    vcf/variant_context.cpp
-    vcf/vcf_attribute.cpp
-    vcf/vcf_shared_attribute.cpp
-    vcf/vcf_ibuffer.cpp
-    vcf/vcf_reader.cpp
-    vcf/vcf_writer.cpp
-    )
-
-
-target_link_libraries(combine-gvcfs
-    ${HTSLIB_LIB}
-    ${LIBDEFLATE_LIB}
-    ${Boost_LIBRARIES}
-    z m bz2 lzma pthread curl ssl crypto profiler)
-
-
-add_executable(test-genotype-allele-counts
-    common/math_utils.cpp
-    vcf/vcf_constants.cpp
-    genotyper/genotype_allele_counts.cpp
-    test/test_genotype_allele_counts.cpp)
-
-target_link_libraries(test-genotype-allele-counts
-    ${Boost_LIBRARIES})
-
-
-add_executable(test-genotype-lk-calculator
-    common/utils.cpp
-    common/math_utils.cpp
-    vcf/vcf_constants.cpp
-    genotyper/genotype_allele_counts.cpp
-    genotyper/genotype_likelihood_calculator.cpp
-    genotyper/genotype_likelihood_calculators.cpp
-    test/test_genotype_likelihood_calculator.cpp)
-
-target_link_libraries(test-genotype-lk-calculator
-    ${Boost_LIBRARIES})
 
 add_library(cdpgt SHARED
     common/cached_ref_seq.cpp
@@ -267,6 +128,7 @@ add_library(cdpgt SHARED
     genotyper/flat_genotype.cpp
     tools/combine_gvcfs_on_sites.cpp
     tools/CombineGVCFsOnSites.cpp
+    tools/VCFHeaderCombiner.cpp
     tools/reference_confident_variant_merger.cpp
     variant_site_finder/variant_site_finder.cpp
     vcf/vcf_id_table.cpp
@@ -293,47 +155,47 @@ target_link_libraries(cdpgt
     z m bz2 lzma pthread curl ssl crypto)
 
 
-add_executable(test_combine_gvcfs_on_sites
-    test/test_combine_gvcfs_on_sites.cpp
-    common/cached_ref_seq.cpp
-    common/histogram.cpp
-    common/simple_interval.cpp
-    common/fastx_seq.cpp
-    common/fastx_suffix.cpp
-    common/int_to_double_cache.cpp
-    common/math_utils.cpp
-    common/reference_context.cpp
-    common/sequence_dictionary.cpp
-    common/simple_interval.cpp
-    common/utils.cpp
-    genotyper/genotype_allele_counts.cpp
-    genotyper/genotype_likelihood_calculator.cpp
-    genotyper/genotype_likelihood_calculators.cpp
-    genotyper/genotype_likelihoods.cpp
-    genotyper/genotype.cpp
-    genotyper/flat_genotype.cpp
-    tools/combine_gvcfs_on_sites.cpp
-    tools/reference_confident_variant_merger.cpp
-    variant_site_finder/variant_site_finder.cpp
-    vcf/vcf_id_table.cpp
-    vcf/allele.cpp
-    vcf/gatk_vcf_constants.cpp
-    vcf/vcf_constants.cpp
-    vcf/hts_vcf_utils.cpp
-    vcf/multi_vcf_reader.cpp
-    vcf/variant_builder.cpp
-    vcf/variant_context_utils.cpp
-    vcf/variant_context.cpp
-    vcf/vcf_attribute.cpp
-    vcf/vcf_shared_attribute.cpp
-    vcf/vcf_ibuffer.cpp
-    vcf/vcf_reader.cpp
-    vcf/vcf_writer.cpp
-    )
+# add_executable(test_combine_gvcfs_on_sites
+#     test/test_combine_gvcfs_on_sites.cpp
+#     common/cached_ref_seq.cpp
+#     common/histogram.cpp
+#     common/simple_interval.cpp
+#     common/fastx_seq.cpp
+#     common/fastx_suffix.cpp
+#     common/int_to_double_cache.cpp
+#     common/math_utils.cpp
+#     common/reference_context.cpp
+#     common/sequence_dictionary.cpp
+#     common/simple_interval.cpp
+#     common/utils.cpp
+#     genotyper/genotype_allele_counts.cpp
+#     genotyper/genotype_likelihood_calculator.cpp
+#     genotyper/genotype_likelihood_calculators.cpp
+#     genotyper/genotype_likelihoods.cpp
+#     genotyper/genotype.cpp
+#     genotyper/flat_genotype.cpp
+#     tools/combine_gvcfs_on_sites.cpp
+#     tools/reference_confident_variant_merger.cpp
+#     variant_site_finder/variant_site_finder.cpp
+#     vcf/vcf_id_table.cpp
+#     vcf/allele.cpp
+#     vcf/gatk_vcf_constants.cpp
+#     vcf/vcf_constants.cpp
+#     vcf/hts_vcf_utils.cpp
+#     vcf/multi_vcf_reader.cpp
+#     vcf/variant_builder.cpp
+#     vcf/variant_context_utils.cpp
+#     vcf/variant_context.cpp
+#     vcf/vcf_attribute.cpp
+#     vcf/vcf_shared_attribute.cpp
+#     vcf/vcf_ibuffer.cpp
+#     vcf/vcf_reader.cpp
+#     vcf/vcf_writer.cpp
+#     )
 
-target_link_libraries(test_combine_gvcfs_on_sites
-    ${HTSLIB_LIB}
-    ${LIBDEFLATE_LIB}
-    ${Boost_LIBRARIES}
-    z m bz2 lzma pthread curl ssl crypto spdlog::spdlog)
+# target_link_libraries(test_combine_gvcfs_on_sites
+#     ${HTSLIB_LIB}
+#     ${LIBDEFLATE_LIB}
+#     ${Boost_LIBRARIES}
+#     z m bz2 lzma pthread curl ssl crypto spdlog::spdlog)
 
