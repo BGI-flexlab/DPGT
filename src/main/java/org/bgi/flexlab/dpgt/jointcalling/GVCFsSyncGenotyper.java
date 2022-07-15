@@ -19,6 +19,7 @@ import org.broadinstitute.hellbender.engine.ReferenceDataSource;
 import org.broadinstitute.hellbender.tools.walkers.ReferenceConfidenceVariantContextMerger;
 import org.broadinstitute.hellbender.tools.walkers.annotator.*;
 import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.*;
+import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
@@ -78,11 +79,18 @@ public class GVCFsSyncGenotyper {
 
     public GVCFsSyncGenotyper(final String refpath, final List<String> vcfpaths, final String vcfHeader,
         final SimpleInterval interval, final String outpath, final String dbsnpPath, final GenotypeCalculationArgumentCollection genotypeArgs) {
+        
         // init reference
         reference = ReferenceDataSource.of(Paths.get(refpath));
         reader = new MultiVariantSyncReader();
         reader.open(vcfpaths, vcfHeader);
         reader.query(interval);
+        final VCFHeader inputVCFHeader = reader.getVCFHeader();
+
+        // precalculate a large log10 value to avoid repeatly expand log10cache
+        {
+            MathUtils.log10(inputVCFHeader.getNGenotypeSamples()*genotypeArgs.samplePloidy*2);
+        }
         
         if (dbsnpPath != null) {
             dbsnp.dbsnp = new FeatureInput<>(dbsnpPath, "dnsnp");
@@ -105,7 +113,6 @@ public class GVCFsSyncGenotyper {
             }
         }
 
-        final VCFHeader inputVCFHeader = reader.getVCFHeader();
         final IndexedSampleList samples = new IndexedSampleList(inputVCFHeader.getSampleNamesInOrder());
 
         this.genotypeArgs = genotypeArgs;

@@ -13,8 +13,6 @@ import java.nio.file.Paths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import breeze.linalg.where;
-
 /**
  * A MultiVariantSyncReader is a reader for reading one variant record from each
  * of the input vcf file and returning a list of variant records at a time.
@@ -27,6 +25,7 @@ public class MultiVariantSyncReader {
     private ArrayList<VariantContext> frontVCs = null;
     private ArrayList<CloseableIterator<VariantContext>> vcfIters = null;
     private VCFHeader header = null;
+    private ArrayList<VariantContext> vcs = new ArrayList<>();
 
     public MultiVariantSyncReader() {}
 
@@ -41,6 +40,7 @@ public class MultiVariantSyncReader {
         }
         VCFFileReader reader = new VCFFileReader(Paths.get(vcfHeader));
         header = reader.getHeader();
+        vcs = new ArrayList<>(vcfpaths.size());
     }
 
     public void close() {
@@ -79,13 +79,13 @@ public class MultiVariantSyncReader {
             frontVCs.clear();
             return result;
         }
-        ArrayList<VariantContext> result = new ArrayList<>();
+        vcs.clear();
         CloseableIterator<VariantContext> firstIter = vcfIters.get(0);
         if (firstIter.hasNext()) {
             int n = 0;
             for (CloseableIterator<VariantContext> iter: vcfIters) {
                 try {
-                    result.add(iter.next());
+                    vcs.add(iter.next());
                 } catch (Exception e) {
                     logger.error("The vcf file %s has fewer lines than the first vcf file %s, %s",
                         vcfpaths.get(n), vcfpaths.get(0), e.getMessage());
@@ -94,7 +94,7 @@ public class MultiVariantSyncReader {
                 ++n;
             }
         }
-        return result;
+        return vcs;
     }
 
     public VCFHeader getVCFHeader() {

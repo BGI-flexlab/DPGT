@@ -726,7 +726,7 @@ public final class MathUtils {
          * @return log10(n)
          */
         public static double get(final int i) {
-            Utils.validateArg(i >= 0, () -> String.format("Can't take the log of a negative number: %d", i));
+            // Utils.validateArg(i >= 0, () -> String.format("Can't take the log of a negative number: %d", i));
             if (i >= cache.length) {
                 final int newCapacity = Math.max(i + 10, 2 * cache.length);
                 logger.debug("cache miss " + i + " > " + (cache.length-1) + " expanding to " + newCapacity);

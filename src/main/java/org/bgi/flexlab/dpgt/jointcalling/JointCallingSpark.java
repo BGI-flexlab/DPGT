@@ -16,8 +16,11 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.io.File;
 import java.io.InputStream;
+import java.lang.reflect.Array;
+
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.commons.io.FileUtils;
 
@@ -68,27 +71,32 @@ public class JointCallingSpark {
             logger.info("Cycle {}/{}", i+1, intervalsToTravers.size());
             logger.info("Processing interval: {}", interval.toString());
             logger.info("Finding variant sites in {}", interval.toString());
-            BitSet variantSiteSetData = vcfpathsRDDPartitionByJobs.
-                mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false).
-                reduce((x, y) -> {x.or(y); return x;});
-            if (variantSiteSetData.isEmpty()) {
-                logger.info("skip interval: {}, because there is no variant site in it.", interval.toString());
-                continue;
-            }
+            // BitSet variantSiteSetData = vcfpathsRDDPartitionByJobs.
+            //     mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false).
+            //     reduce((x, y) -> {x.or(y); return x;});
+            // if (variantSiteSetData.isEmpty()) {
+            //     logger.info("skip interval: {}, because there is no variant site in it.", interval.toString());
+            //     continue;
+            // }
 
-            Broadcast<byte[]> variantSiteSetBytesBc = sc.broadcast(variantSiteSetData.toByteArray());
+            // Broadcast<byte[]> variantSiteSetBytesBc = sc.broadcast(variantSiteSetData.toByteArray());
 
             logger.info("Combining gvcfs in {}", interval.toString());
             File combineDir = new File(jcOptions.output+"/"+COMBINE_GVCFS_PREFIX+i);
             if (!combineDir.exists()) {
                 combineDir.mkdirs();
             }
-            List<String> combinedGVCFs = vcfpathsRDDPartitionByCombineParts.mapPartitionsWithIndex(new CombineGVCFsOnSitesSparkFunc(
-                jcOptions.reference, combineDir.getAbsolutePath()+"/"+COMBINE_GVCFS_PREFIX, interval, variantSiteSetBytesBc), false).
-                collect();
+            // List<String> combinedGVCFs = vcfpathsRDDPartitionByCombineParts.mapPartitionsWithIndex(new CombineGVCFsOnSitesSparkFunc(
+            //     jcOptions.reference, combineDir.getAbsolutePath()+"/"+COMBINE_GVCFS_PREFIX, interval, variantSiteSetBytesBc), false).
+            //     collect();
             
-            variantSiteSetBytesBc.unpersist();  // Asynchronously delete cached copies of this broadcast on the executors.
-            
+            // variantSiteSetBytesBc.unpersist();  // Asynchronously delete cached copies of this broadcast on the executors.
+
+            List<String> combinedGVCFs = Arrays.asList(combineDir.list((x, y) ->{return y.endsWith("vcf.gz");}));
+            for (int j = 0; j < combinedGVCFs.size(); ++j) {
+                combinedGVCFs.set(j, combineDir.getAbsolutePath() + "/" + combinedGVCFs.get(j));
+            }
+
             logger.info("Genotyping gvcfs in {}", interval.toString());
             File genotypeDir = new File(jcOptions.output+"/"+GENOTYPE_GVCFS_PREFIX+i);
             if (!genotypeDir.exists()) {
@@ -96,7 +104,7 @@ public class JointCallingSpark {
             }
             final String genotypePrefix = genotypeDir.getAbsolutePath()+"/"+GENOTYPE_GVCFS_PREFIX;
             ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitions(interval, jcOptions.jobs);
-            JavaRDD<SimpleInterval> windowsRDD = sc.parallelize(windows, windows.size());
+            JavaRDD<SimpleInterval> windowsRDD = sc.parallelize(windows, jcOptions.jobs);
             List<String> genotypeGVCFs = windowsRDD.
                 mapPartitionsWithIndex(new GVCFsSyncGenotyperSparkFunc(jcOptions.reference, combinedGVCFs,
                     genotypeHeader, genotypePrefix, jcOptions.dbsnp, jcOptions.genotypeArguments), false)

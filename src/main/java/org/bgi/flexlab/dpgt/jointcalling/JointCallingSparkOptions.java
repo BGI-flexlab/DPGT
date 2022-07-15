@@ -99,12 +99,12 @@ public class JointCallingSparkOptions implements Serializable {
             System.exit(1);
         }
 
-        if (args.length == 0 || getOptionFlagValue("h", false)) {
+        if (args.length == 0 || getOptionFlagValue("h")) {
             helpFormatter.printHelp("Options:", options);
             return;
         }
 
-        if (getOptionFlagValue("V", false)) {
+        if (getOptionFlagValue("V")) {
             System.out.println("DPGT Version: " + VERSION);
             return;
         }
@@ -231,17 +231,17 @@ public class JointCallingSparkOptions implements Serializable {
 		return defaultValue;
 	}
 
-    protected boolean getOptionFlagValue(String opt, boolean defaultValue) {
+    protected boolean getOptionFlagValue(String opt) {
         if (cmdLine.hasOption(opt))
 			return true;
-		return defaultValue;
+		return false;
     }
 
 	protected boolean getOptionBooleanValue(String opt, boolean defaultValue) {
 		if (cmdLine.hasOption(opt)) {
-            if (cmdLine.getOptionValue(opt) == "true") {
+            if (cmdLine.getOptionValue(opt).equals("true")) {
                 return true;
-            } else if (cmdLine.getOptionValue(opt) == "false") {
+            } else if (cmdLine.getOptionValue(opt).equals("false")) {
                 return false;
             }
         }

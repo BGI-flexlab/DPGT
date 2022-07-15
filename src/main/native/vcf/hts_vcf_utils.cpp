@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sstream>
 #include <map>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -110,16 +111,13 @@ void bcf_hdr_rename_dup_samples(std::vector<bcf_hdr_t *> headers,
 
 bcf_hdr_t *bcf_hdr_merge_add_samples(std::vector<bcf_hdr_t *> headers)
 {
-    std::vector<std::string> samples;
+    std::set<std::string> samples;
     for (bcf_hdr_t *h: headers) {
         const int nsamples = bcf_hdr_nsamples(h);
         for (int i = 0; i < nsamples; ++i) {
-            samples.push_back(h->samples[i]);
+            samples.insert(h->samples[i]);
         }
     }
-
-    // sort sample names
-    std::sort(samples.begin(), samples.end());
 
     // merge header
     bcf_hdr_t *result = NULL;
