@@ -26,6 +26,11 @@ public class CombineGVCFsOnSitesSparkFunc implements Function2<Integer, Iterator
         while(vcfpathIter.hasNext()) {
             vcfpaths.add(vcfpathIter.next());
         }
+        if (vcfpaths.isEmpty()) {
+            ArrayList<String> returnValue=new ArrayList<>();
+            returnValue.add("null");
+            return returnValue.iterator();
+        }
         String[] vcfpathsArray  = new String[vcfpaths.size()];
         vcfpaths.toArray(vcfpathsArray);
         CombineGVCFsOnSites combiner = new CombineGVCFsOnSites();

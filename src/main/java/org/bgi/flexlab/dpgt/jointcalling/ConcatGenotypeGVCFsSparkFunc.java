@@ -37,7 +37,7 @@ public class ConcatGenotypeGVCFsSparkFunc implements Function2<Integer, Iterator
         }
         while(vcfpathIter.hasNext()) {
             String vcfpath = vcfpathIter.next();
-            if (vcfpath == "null") {
+            if (vcfpath.equals("null")) {
                 continue;
             }
             copyBytes(vcfpath, bufferedOutputStream, buffer);

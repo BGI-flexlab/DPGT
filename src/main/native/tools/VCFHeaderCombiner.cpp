@@ -38,7 +38,6 @@ JNIEXPORT void JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_VCFHeaderCombiner_
         }
         bcf_hdr_t *hdr = bcf_hdr_read(fp);
         headers.push_back(hdr);
-        ++n;
         hts_close(fp);
         if (n >= chunk_size) {
             bcf_hdr_t *mhdr = bcf_hdr_merge_add_samples(headers);
@@ -49,6 +48,7 @@ JNIEXPORT void JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_VCFHeaderCombiner_
             mheaders.push_back(mhdr);
             n = 1;
         }
+        ++n;
     }
 
     if (headers.size() > 0) {

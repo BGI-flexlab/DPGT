@@ -16,10 +16,8 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.io.File;
 import java.io.InputStream;
-import java.lang.reflect.Array;
 
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.commons.io.FileUtils;
@@ -33,11 +31,13 @@ public class JointCallingSpark {
     private static final String GENOTYPE_GVCFS_PREFIX = "genotype."; // outdir/genotype.idx
     private static final String OUTPUT_NAME = "result.vcf.gz"; // outdir/result.vcf.gz
 
+    private static final int GENOTYPE_PARTITION_COEFFICIENT = 4;
+
     static{
         try{
             System.loadLibrary("cdpgt");
         }catch(UnsatisfiedLinkError e){
-            logger.error("Native code library failed to load.\n" + e);
+            logger.error("Failed to load Native code library cdpgt.\n" + e);
             System.exit(1);
         }
     }
@@ -71,31 +71,32 @@ public class JointCallingSpark {
             logger.info("Cycle {}/{}", i+1, intervalsToTravers.size());
             logger.info("Processing interval: {}", interval.toString());
             logger.info("Finding variant sites in {}", interval.toString());
-            // BitSet variantSiteSetData = vcfpathsRDDPartitionByJobs.
-            //     mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false).
-            //     reduce((x, y) -> {x.or(y); return x;});
-            // if (variantSiteSetData.isEmpty()) {
-            //     logger.info("skip interval: {}, because there is no variant site in it.", interval.toString());
-            //     continue;
-            // }
+            BitSet variantSiteSetData = vcfpathsRDDPartitionByJobs.
+                mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false).
+                reduce((x, y) -> {x.or(y); return x;});
+            if (variantSiteSetData.isEmpty()) {
+                logger.info("skip interval: {}, because there is no variant site in it.", interval.toString());
+                continue;
+            }
 
-            // Broadcast<byte[]> variantSiteSetBytesBc = sc.broadcast(variantSiteSetData.toByteArray());
+            Broadcast<byte[]> variantSiteSetBytesBc = sc.broadcast(variantSiteSetData.toByteArray());
 
             logger.info("Combining gvcfs in {}", interval.toString());
             File combineDir = new File(jcOptions.output+"/"+COMBINE_GVCFS_PREFIX+i);
             if (!combineDir.exists()) {
                 combineDir.mkdirs();
             }
-            // List<String> combinedGVCFs = vcfpathsRDDPartitionByCombineParts.mapPartitionsWithIndex(new CombineGVCFsOnSitesSparkFunc(
-            //     jcOptions.reference, combineDir.getAbsolutePath()+"/"+COMBINE_GVCFS_PREFIX, interval, variantSiteSetBytesBc), false).
-            //     collect();
+            List<String> combinedGVCFs = vcfpathsRDDPartitionByCombineParts.mapPartitionsWithIndex(new CombineGVCFsOnSitesSparkFunc(
+                jcOptions.reference, combineDir.getAbsolutePath()+"/"+COMBINE_GVCFS_PREFIX, interval, variantSiteSetBytesBc), false)
+                .filter(x -> {return !x.equals("null");})
+                .collect();
             
-            // variantSiteSetBytesBc.unpersist();  // Asynchronously delete cached copies of this broadcast on the executors.
+            variantSiteSetBytesBc.unpersist();  // Asynchronously delete cached copies of this broadcast on the executors.
 
-            List<String> combinedGVCFs = Arrays.asList(combineDir.list((x, y) ->{return y.endsWith("vcf.gz");}));
-            for (int j = 0; j < combinedGVCFs.size(); ++j) {
-                combinedGVCFs.set(j, combineDir.getAbsolutePath() + "/" + combinedGVCFs.get(j));
-            }
+            // List<String> combinedGVCFs = Arrays.asList(combineDir.list((x, y) ->{return y.endsWith("vcf.gz");}));
+            // for (int j = 0; j < combinedGVCFs.size(); ++j) {
+            //     combinedGVCFs.set(j, combineDir.getAbsolutePath() + "/" + combinedGVCFs.get(j));
+            // }
 
             logger.info("Genotyping gvcfs in {}", interval.toString());
             File genotypeDir = new File(jcOptions.output+"/"+GENOTYPE_GVCFS_PREFIX+i);
@@ -103,11 +104,12 @@ public class JointCallingSpark {
                 genotypeDir.mkdirs();
             }
             final String genotypePrefix = genotypeDir.getAbsolutePath()+"/"+GENOTYPE_GVCFS_PREFIX;
-            ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitions(interval, jcOptions.jobs);
-            JavaRDD<SimpleInterval> windowsRDD = sc.parallelize(windows, jcOptions.jobs);
+            ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitions(interval, jcOptions.jobs * GENOTYPE_PARTITION_COEFFICIENT);
+            JavaRDD<SimpleInterval> windowsRDD = sc.parallelize(windows, windows.size());
             List<String> genotypeGVCFs = windowsRDD.
                 mapPartitionsWithIndex(new GVCFsSyncGenotyperSparkFunc(jcOptions.reference, combinedGVCFs,
                     genotypeHeader, genotypePrefix, jcOptions.dbsnp, jcOptions.genotypeArguments), false)
+                .filter(x -> {return !x.equals("null");})
                 .collect();
             
             logger.info("Concating genotyped vcfs in {} to result", interval.toString());
@@ -128,7 +130,10 @@ public class JointCallingSpark {
     }
 
     private static VCFHeader combineVCFHeaders(JavaRDD<String> vcfpathsRDD, final String outdir, final GenotypeCalculationArgumentCollection genotypeArgs) {
-        List<String> combinedHeaders = vcfpathsRDD.mapPartitionsWithIndex(new CombineVCFHeadersSparkFunc(outdir), false).collect();
+        List<String> combinedHeaders = vcfpathsRDD.mapPartitionsWithIndex(new CombineVCFHeadersSparkFunc(outdir), false)
+            .filter(x -> {return !x.equals("null");})
+            .collect();
+
         // combine headers of each partition to generate combined header for all input vcfs
         VCFHeaderCombiner combiner = new VCFHeaderCombiner();
         String combinedHeader = outdir+"/header.vcf.gz";

@@ -29,11 +29,13 @@ public class GVCFsSyncGenotyperSparkFunc implements Function2<Integer, Iterator<
 
     @Override public Iterator<String> call(Integer idx, Iterator<SimpleInterval> intervalIter) {
         if (intervalIter.hasNext()) {
+            System.gc();
             SimpleInterval interval = intervalIter.next();
             String outpath = prefix + idx + ".vcf.gz";
             GVCFsSyncGenotyper genotyper = new GVCFsSyncGenotyper(refpath, vcfpaths, vcfHeaderPath, interval, outpath, dbsnpPath, genotypeArgs);
             genotyper.run();
             genotyper.stop();
+            System.gc();
             ArrayList<String> result=new ArrayList<>();
             result.add(outpath);
             return result.iterator();
