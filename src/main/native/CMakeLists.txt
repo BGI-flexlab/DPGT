@@ -109,6 +109,7 @@ include_directories(${Boost_INCLUDE_DIRS})
 add_subdirectory(vendor/spdlog)
 
 add_library(cdpgt SHARED
+    common/check_jemalloc.cpp
     common/cached_ref_seq.cpp
     common/histogram.cpp
     common/simple_interval.cpp
@@ -130,6 +131,9 @@ add_library(cdpgt SHARED
     tools/CombineGVCFsOnSites.cpp
     tools/VCFHeaderCombiner.cpp
     tools/reference_confident_variant_merger.cpp
+    tools/vcf_header_combiner.cpp
+    tools/NativeInitializer.cpp
+    tools/NativeResponse.cpp
     variant_site_finder/variant_site_finder.cpp
     vcf/vcf_id_table.cpp
     vcf/allele.cpp
@@ -199,3 +203,16 @@ target_link_libraries(cdpgt
 #     ${Boost_LIBRARIES}
 #     z m bz2 lzma pthread curl ssl crypto spdlog::spdlog)
 
+
+# add_executable(test_vcf_header_combiner
+#     test/test_vcf_header_combiner.cpp
+#     tools/vcf_header_combiner.cpp
+#     vcf/hts_vcf_utils.cpp
+#     vcf/vcf_writer.cpp
+#     common/check_jemalloc.cpp)
+
+# target_link_libraries(test_vcf_header_combiner
+#     ${HTSLIB_LIB}
+#     ${LIBDEFLATE_LIB}
+#     ${Boost_LIBRARIES}
+#     z m bz2 lzma pthread curl ssl crypto)

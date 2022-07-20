@@ -1,6 +1,7 @@
 package org.bgi.flexlab.dpgt.jointcalling;
 import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
+import org.netlib.util.booleanW;
 
 import java.io.Serializable;
 import java.lang.Character;

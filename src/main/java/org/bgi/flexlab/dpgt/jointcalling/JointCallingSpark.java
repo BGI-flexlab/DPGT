@@ -43,6 +43,10 @@ public class JointCallingSpark {
     }
 
     public static void main(String[] args) throws Exception {
+        // Initialize JNI C/C++ environment.
+        NativeInitializer nativeInitializer = new NativeInitializer();
+        nativeInitializer.apply();
+
         ClassLoader classloader = Thread.currentThread().getContextClassLoader();
         InputStream log4jPropertiestIs = classloader.getResourceAsStream("log4j.properties");
         PropertyConfigurator.configure(log4jPropertiestIs);
@@ -50,7 +54,7 @@ public class JointCallingSpark {
         jcOptions.parse(args);
         List<SimpleInterval> intervalsToTravers = jcOptions.getIntervalsToTravers();
 
-        SparkConf conf = new SparkConf().setAppName("VariantSiteFinder");
+        SparkConf conf = new SparkConf().setAppName("VariantSiteFinder").setMaster("local[10]");
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc.textFile(jcOptions.input, jcOptions.numCombinePartitions);
@@ -74,6 +78,7 @@ public class JointCallingSpark {
             BitSet variantSiteSetData = vcfpathsRDDPartitionByJobs.
                 mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false).
                 reduce((x, y) -> {x.or(y); return x;});
+
             if (variantSiteSetData.isEmpty()) {
                 logger.info("skip interval: {}, because there is no variant site in it.", interval.toString());
                 continue;
