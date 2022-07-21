@@ -54,7 +54,7 @@ public class JointCallingSpark {
         jcOptions.parse(args);
         List<SimpleInterval> intervalsToTravers = jcOptions.getIntervalsToTravers();
 
-        SparkConf conf = new SparkConf().setAppName("VariantSiteFinder").setMaster("local[10]");
+        SparkConf conf = new SparkConf().setAppName("JointCallingSpark");
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc.textFile(jcOptions.input, jcOptions.numCombinePartitions);
@@ -109,7 +109,8 @@ public class JointCallingSpark {
                 genotypeDir.mkdirs();
             }
             final String genotypePrefix = genotypeDir.getAbsolutePath()+"/"+GENOTYPE_GVCFS_PREFIX;
-            ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitions(interval, jcOptions.jobs * GENOTYPE_PARTITION_COEFFICIENT);
+            ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(
+                interval, jcOptions.jobs * GENOTYPE_PARTITION_COEFFICIENT, variantSiteSetData);
             JavaRDD<SimpleInterval> windowsRDD = sc.parallelize(windows, windows.size());
             List<String> genotypeGVCFs = windowsRDD.
                 mapPartitionsWithIndex(new GVCFsSyncGenotyperSparkFunc(jcOptions.reference, combinedGVCFs,
