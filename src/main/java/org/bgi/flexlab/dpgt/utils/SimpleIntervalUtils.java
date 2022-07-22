@@ -44,6 +44,11 @@ public class SimpleIntervalUtils {
     * @return small windows
     */
     public static ArrayList<SimpleInterval> splitIntervalByPartitions(final SimpleInterval largeInterval, int partitions) {
+        if (partitions == 1) {
+            ArrayList<SimpleInterval> result = new ArrayList<>();
+            result.add(largeInterval);
+            return result;
+        }
         int size = Math.max((int)Math.floor((largeInterval.size() / (0.95*partitions))), 1);
         return splitIntervalBySize(largeInterval, size);
     }
@@ -58,7 +63,7 @@ public class SimpleIntervalUtils {
      */
     public static ArrayList<SimpleInterval> splitIntervalByPartitionsAndBitSet(final SimpleInterval largeInterval, int partitions, final BitSet bitSet) {
         int totalCount = bitSet.cardinality();
-        int count = Math.max((int)Math.floor((totalCount / (0.95*partitions))), 1);
+        int count = Math.max((int)Math.floor((totalCount / (0.98*partitions))), 1);
         int n = 0;
         int s = bitSet.nextSetBit(0);
         int e = 0;

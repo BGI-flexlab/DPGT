@@ -1,7 +1,6 @@
 package org.bgi.flexlab.dpgt.jointcalling;
 import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
-import org.netlib.util.booleanW;
 
 import java.io.Serializable;
 import java.lang.Character;
@@ -55,6 +54,9 @@ public class JointCallingSparkOptions implements Serializable {
     // genotype arguments
     public GenotypeCalculationArgumentCollection genotypeArguments = new GenotypeCalculationArgumentCollection();
 
+    // spark running arguments
+    public boolean uselocalMaster = false;        // if run spark in local mode
+
     public boolean deleteIntermediateResults = true;
 
     public JointCallingSparkOptions() {
@@ -73,6 +75,7 @@ public class JointCallingSparkOptions implements Serializable {
         addOption(null,"indel-heterozygosity", true, "heterozygosity for indel calling. [1.25E-4]", false, "FLOAT");
         addOption(null,"heterozygosity-stdev", true, "standard deviation of heterozygosity for SNP and indel calling. [0.01]", false, "FLOAT");
         addOption(null,"ploidy", true, "ploidy (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy). [2]", false, "INT");
+        addOption(null,"local", false, "run spark in local mode, useful for debug", false, null);
         addOption("h", "help", false, "print this message and exit.", false, null);
         addOption("V", "version", false, "show version.", false, null);
     }
@@ -125,6 +128,7 @@ public class JointCallingSparkOptions implements Serializable {
         this.genotypeArguments.indelHeterozygosity = getOptionDoubleValue("indel-heterozygosity", this.genotypeArguments.snpHeterozygosity);
         this.genotypeArguments.heterozygosityStandardDeviation = getOptionDoubleValue("heterozygosity-stdev", this.genotypeArguments.heterozygosityStandardDeviation);
         this.genotypeArguments.samplePloidy = getOptionIntValue("ploidy", this.genotypeArguments.samplePloidy);
+        this.uselocalMaster = getOptionFlagValue("local");
 
         this.referenceDataSrc = ReferenceDataSource.of(Paths.get(this.reference));
         this.sequenceDict = referenceDataSrc.getSequenceDictionary();
