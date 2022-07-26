@@ -19,6 +19,7 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import java.util.List;
 import java.util.ArrayList;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.log4j.PropertyConfigurator;
@@ -32,8 +33,8 @@ public class JointCallingSpark {
     private static final String COMBINE_GVCFS_PREFIX = "combine."; // outdir/combine.idx
     private static final String GENOTYPE_GVCFS_PREFIX = "genotype."; // outdir/genotype.idx
     private static final String OUTPUT_NAME = "result.vcf.gz"; // outdir/result.vcf.gz
-
-    private static final int GENOTYPE_PARTITION_COEFFICIENT = 4;
+    
+    private static final int PARTITION_COEFFICIENT = 4;
 
     static{
         try{
@@ -60,7 +61,7 @@ public class JointCallingSpark {
         if (jcOptions.uselocalMaster) conf.setMaster("local["+jcOptions.jobs+"]");
         JavaSparkContext sc = new JavaSparkContext(conf);
 
-        JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc.textFile(jcOptions.input, jcOptions.numCombinePartitions);
+        JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc.textFile(addFilePrefixIfNeed(jcOptions.input), jcOptions.numCombinePartitions);
 
         File headerDir = new File(jcOptions.output+"/"+HEADER_DIR);
         if (!headerDir.exists()) {
@@ -69,7 +70,7 @@ public class JointCallingSpark {
         combineVCFHeaders(vcfpathsRDDPartitionByCombineParts, headerDir.getAbsolutePath(), jcOptions.genotypeArguments);
         final String genotypeHeader = headerDir.getAbsolutePath() + "/" + GENOTYPE_HEADER;
 
-        JavaRDD<String> vcfpathsRDDPartitionByJobs = sc.textFile(jcOptions.input, jcOptions.jobs);
+        JavaRDD<String> vcfpathsRDDPartitionByJobs = sc.textFile(addFilePrefixIfNeed(jcOptions.input), PARTITION_COEFFICIENT * jcOptions.jobs);
 
         final String outputPath = jcOptions.output + "/" + OUTPUT_NAME;
 
@@ -94,8 +95,9 @@ public class JointCallingSpark {
             }
             final String combinePrefix = combineDir.getAbsolutePath()+"/"+COMBINE_GVCFS_PREFIX;
 
-            ArrayList<SimpleInterval> subIntervals = SimpleIntervalUtils.splitIntervalByPartitions(interval,
-                Math.max((int)Math.ceil(1.0*jcOptions.jobs/jcOptions.numCombinePartitions), 1));
+            ArrayList<SimpleInterval> subIntervals = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(interval,
+                Math.max((int)Math.ceil(PARTITION_COEFFICIENT*1.0*jcOptions.jobs/jcOptions.numCombinePartitions), 1),
+                variantSiteSetData);
             ArrayList<BitSet> subVariantBitSets = getSubBitSets(variantSiteSetData, interval, subIntervals);
             ArrayList<Broadcast<byte[]>> subVariantBitSetsBcs = new ArrayList<>();
             for (BitSet b: subVariantBitSets)
@@ -130,7 +132,7 @@ public class JointCallingSpark {
             ArrayList<String> genotypeGVCFsList = new ArrayList<>();
             for (int j = 0; j < subIntervals.size(); ++j) {
                 ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(
-                    subIntervals.get(j), jcOptions.jobs * GENOTYPE_PARTITION_COEFFICIENT, subVariantBitSets.get(j));
+                    subIntervals.get(j), jcOptions.jobs * PARTITION_COEFFICIENT, subVariantBitSets.get(j));
                 JavaRDD<SimpleInterval> windowsRDD = sc.parallelize(windows, windows.size());
                 List<String> genotypeGVCFs = windowsRDD.
                     mapPartitionsWithIndex(new GVCFsSyncGenotyperSparkFunc(jcOptions.reference, combinedGVCFsList.get(j),
@@ -192,5 +194,23 @@ public class JointCallingSpark {
             result.add(largeBitSet.get(i, j));
         }
         return result;
+    }
+
+    /**
+     * add file:// prefix if need
+     * @param input input file name
+     * @return file name with file:// prefix
+     */
+    private static String addFilePrefixIfNeed(final String input) {
+        if (!input.startsWith("file://")) {
+            File inputFile = new File(input);
+            try {
+                return "file://" + inputFile.getCanonicalPath();
+            } catch (IOException e) {
+                logger.error(e.getMessage());
+                System.exit(1);
+            }
+        }
+        return input;
     }
 }

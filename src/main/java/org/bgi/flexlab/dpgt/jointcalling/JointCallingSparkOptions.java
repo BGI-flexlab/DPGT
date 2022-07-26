@@ -205,7 +205,7 @@ public class JointCallingSparkOptions implements Serializable {
 
     public List<SimpleInterval> getIntervalsToTravers() {
         ArrayList<SimpleInterval> result = new ArrayList<>();
-        if (this.targetIntervals == null) {
+        if (this.targetIntervals.isEmpty()) {
             for (SAMSequenceRecord loc: this.sequenceDict.getSequences()) {
                 result.addAll(SimpleIntervalUtils.splitIntervalBySize(new SimpleInterval(loc), this.window));
             }
