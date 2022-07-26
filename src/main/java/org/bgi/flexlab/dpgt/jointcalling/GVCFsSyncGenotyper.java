@@ -119,7 +119,7 @@ public class GVCFsSyncGenotyper {
         // We only want the engine to generate the AS_QUAL key if we are using AlleleSpecific annotations.
         genotypingEngine = new MinimalGenotypingEngine(createUAC(), samples, new GeneralPloidyFailOverAFCalculatorProvider(this.genotypeArgs), annotationEngine.isRequestedReducibleRawKey(GATKVCFConstants.AS_QUAL_KEY));
 
-        merger = new ReferenceConfidenceVariantContextMerger(annotationEngine, inputVCFHeader);
+        merger = new ReferenceConfidenceVariantContextMerger(annotationEngine, genotypeArgs, inputVCFHeader);
 
         outputFile = new File(outpath);
 

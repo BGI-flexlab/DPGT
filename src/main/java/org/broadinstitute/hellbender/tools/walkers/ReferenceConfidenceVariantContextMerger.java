@@ -12,7 +12,9 @@ import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.Alle
 import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.ReducibleAnnotationData;
 import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeLikelihoodCalculator;
 import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeLikelihoodCalculators;
+import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.hellbender.utils.Utils;
+import org.broadinstitute.hellbender.utils.MathUtils;
 import org.broadinstitute.hellbender.utils.logging.OneShotLogger;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 import org.broadinstitute.hellbender.utils.variant.GATKVariantContextUtils;
@@ -20,6 +22,7 @@ import org.broadinstitute.hellbender.utils.variant.GATKVariantContextUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.IntStream;
 
 /**
  * Variant context utilities related to merging variant-context instances.
@@ -28,7 +31,8 @@ import java.util.stream.Stream;
  */
 @SuppressWarnings({"rawtypes","unchecked"}) //TODO fix uses of untyped Comparable.
 public final class ReferenceConfidenceVariantContextMerger {
-
+    private static final int PL_INDEX_OF_HOM_REF = 0;
+    private GenotypeCalculationArgumentCollection genotypeArgs = null;
     private final GenotypeLikelihoodCalculators calculators;
     private final VCFHeader vcfInputHeader;
     protected final VariantAnnotatorEngine annotatorEngine;
@@ -39,6 +43,15 @@ public final class ReferenceConfidenceVariantContextMerger {
     public ReferenceConfidenceVariantContextMerger(VariantAnnotatorEngine engine, final VCFHeader inputHeader) {
         Utils.nonNull(inputHeader, "A VCF header must be provided");
 
+        calculators = new GenotypeLikelihoodCalculators();
+        annotatorEngine = engine;
+        vcfInputHeader = inputHeader;
+    }
+
+    public ReferenceConfidenceVariantContextMerger(VariantAnnotatorEngine engine, GenotypeCalculationArgumentCollection genotypeArgs, final VCFHeader inputHeader) {
+        Utils.nonNull(inputHeader, "A VCF header must be provided");
+
+        this.genotypeArgs = genotypeArgs;
         calculators = new GenotypeLikelihoodCalculators();
         annotatorEngine = engine;
         vcfInputHeader = inputHeader;
@@ -78,7 +91,11 @@ public final class ReferenceConfidenceVariantContextMerger {
             vcAndNewAllelePairs.add(new VCWithNewAlleles(vc, isSpanningEvent ? replaceWithNoCallsAndDels(vc) : remapAlleles(vc, refAllele), isSpanningEvent));
         }
 
-        final List<Allele> allelesList = collectTargetAlleles(vcAndNewAllelePairs, refAllele, removeNonRefSymbolicAllele);
+        List<Allele> allelesList = collectTargetAlleles(vcAndNewAllelePairs, refAllele, removeNonRefSymbolicAllele);
+        // select most likely alleles(calculateMostLikelyAlleles) to reduce memory
+        if (genotypeArgs != null && allelesList.size() - 1 > genotypeArgs.MAX_ALTERNATE_ALLELES) {
+            allelesList = AlleleFilterCalculateMostLikelyAlleles(vcAndNewAllelePairs, allelesList, genotypeArgs.MAX_ALTERNATE_ALLELES);
+        }
 
         final Set<String> rsIDs = new LinkedHashSet<>(1); // most of the time there's one id
         int depth = 0;
@@ -635,5 +652,89 @@ public final class ReferenceConfidenceVariantContextMerger {
         return newAD;
     }
 
+
+    private List<Allele> AlleleFilterCalculateMostLikelyAlleles(final List<VCWithNewAlleles> vcAndNewAllelePairs, final List<Allele> targetAlleles, final int numAltAllelesToKeep) {
+        final int targetNonRefAltAlleleIndex = targetAlleles.indexOf(Allele.NON_REF_ALLELE);
+        if (targetNonRefAltAlleleIndex >= 0 && targetAlleles.size() - 1 <= numAltAllelesToKeep)
+        {
+            return targetAlleles;
+        }
+        final double[] likelihoodSums = AlleleFilterCalculateLikelihoodSums(vcAndNewAllelePairs, targetAlleles, targetNonRefAltAlleleIndex);
+        return AlleleFilterfilterToMaxNumberOfAltAllelesBasedOnScores(numAltAllelesToKeep, targetAlleles, likelihoodSums);
+    }
+
+    private double[] AlleleFilterCalculateLikelihoodSums(final List<VCWithNewAlleles> vcAndNewAllelePairs, final List<Allele> targetAlleles, final int targetNonRefAltAlleleIndex) {
+        final double[] likelihoodSums = new double[targetAlleles.size()];
+        for (final VCWithNewAlleles vcWithNewAlleles: vcAndNewAllelePairs) {
+            final VariantContext vc = vcWithNewAlleles.getVc();
+            final List<Allele> remappedAlleles = vcWithNewAlleles.getNewAlleles();
+
+            // perSampleIndexesOfRelevantAlleles is new to old index map,
+            // array index is new allele index, array value is old allele index
+            // perSampleIndexesOfRelevantAllelesRev is old to new index map,
+            // array index is old allele index, array value is new allele index
+            int[] perSampleIndexesOfRelevantAlleles;
+            int[] perSampleIndexesOfRelevantAllelesRev;  // reverse of perSampleIndexesOfRelevantAlleles
+
+            for (final Genotype genotype : vc.getGenotypes().iterateInSampleNameOrder() ) {
+                final GenotypeLikelihoods gls = genotype.getLikelihoods();
+                if (gls == null) {
+                    continue;
+                }
+                final double[] glsVector = gls.getAsVector();
+                final int indexOfMostLikelyGenotype = MathUtils.maxElementIndex(glsVector);
+                final double GLDiffBetweenRefAndBest = glsVector[indexOfMostLikelyGenotype] - glsVector[PL_INDEX_OF_HOM_REF];
+                final int ploidy = genotype.getPloidy() > 0 ? genotype.getPloidy() : genotypeArgs.samplePloidy;
+
+                final int[] alleleCounts = new GenotypeLikelihoodCalculators()
+                        .getInstance(ploidy, vc.getNAlleles()).genotypeAlleleCountsAt(indexOfMostLikelyGenotype)
+                        .alleleCountsByIndex(vc.getNAlleles() - 1);
+                final int nonRefAltAlleleIndex = vc.getAlleles().indexOf(Allele.NON_REF_ALLELE);
+                // old to new allele index convert
+                perSampleIndexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, vc.getStart(), genotype);
+                perSampleIndexesOfRelevantAllelesRev = reverseIndexArray(perSampleIndexesOfRelevantAlleles, nonRefAltAlleleIndex, targetNonRefAltAlleleIndex);
+
+                for (int allele = 1; allele < alleleCounts.length; allele++) {
+                    if (alleleCounts[allele] > 0 && perSampleIndexesOfRelevantAllelesRev[allele] > 0) {
+                        likelihoodSums[perSampleIndexesOfRelevantAllelesRev[allele]] += GLDiffBetweenRefAndBest;
+                    }
+                }
+            }
+
+        }
+        return likelihoodSums;
+    }
+
+    private static List<Allele> AlleleFilterfilterToMaxNumberOfAltAllelesBasedOnScores(int numAltAllelesToKeep, List<Allele> alleles, double[] likelihoodSums) {
+        final int nonRefAltAlleleIndex = alleles.indexOf(Allele.NON_REF_ALLELE);
+        final int numAlleles = alleles.size();
+        final Set<Integer> properAltIndexesToKeep = IntStream.range(1, numAlleles).filter(n -> n != nonRefAltAlleleIndex).boxed()
+                                                             .sorted(Comparator.comparingDouble((Integer n) -> likelihoodSums[n]).reversed())
+                                                             .limit(numAltAllelesToKeep)
+                                                             .collect(Collectors.toSet());
+
+        return IntStream.range(0, numAlleles)
+                .filter( i ->  i == 0 || i == nonRefAltAlleleIndex || properAltIndexesToKeep.contains(i)  )
+                .mapToObj(alleles::get)
+                .collect(Collectors.toList());
+    }
+
+    private static int[] reverseIndexArray(final int[] inputArray, final int nonRefAltAlleleIndex, final int targetNonRefAltAlleleIndex) {
+        int n = 0;
+        for (int i = 0; i < inputArray.length; ++i) {
+            if (inputArray[i] > n) n = inputArray[i];
+        }
+        int[] result = new int[n+1];
+        for (int i = 0; i < inputArray.length; ++i) {
+            // multiple target allele can map to NON_REF index, but when do reversion only allow map NON_REF index to target NON_REF index
+            if (inputArray[i] == nonRefAltAlleleIndex) {
+                // targetNonRefAltAlleleIndex can be negative
+                result[inputArray[i]] = targetNonRefAltAlleleIndex;
+            } else {
+                result[inputArray[i]] = i;
+            }
+        }
+        return result;
+    }
 
 }
