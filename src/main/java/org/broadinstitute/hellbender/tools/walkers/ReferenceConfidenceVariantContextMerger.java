@@ -669,11 +669,8 @@ public final class ReferenceConfidenceVariantContextMerger {
             final VariantContext vc = vcWithNewAlleles.getVc();
             final List<Allele> remappedAlleles = vcWithNewAlleles.getNewAlleles();
 
-            // perSampleIndexesOfRelevantAlleles is new to old index map,
-            // array index is new allele index, array value is old allele index
             // perSampleIndexesOfRelevantAllelesRev is old to new index map,
             // array index is old allele index, array value is new allele index
-            int[] perSampleIndexesOfRelevantAlleles;
             int[] perSampleIndexesOfRelevantAllelesRev;  // reverse of perSampleIndexesOfRelevantAlleles
 
             for (final Genotype genotype : vc.getGenotypes().iterateInSampleNameOrder() ) {
@@ -689,13 +686,11 @@ public final class ReferenceConfidenceVariantContextMerger {
                 final int[] alleleCounts = new GenotypeLikelihoodCalculators()
                         .getInstance(ploidy, vc.getNAlleles()).genotypeAlleleCountsAt(indexOfMostLikelyGenotype)
                         .alleleCountsByIndex(vc.getNAlleles() - 1);
-                final int nonRefAltAlleleIndex = vc.getAlleles().indexOf(Allele.NON_REF_ALLELE);
                 // old to new allele index convert
-                perSampleIndexesOfRelevantAlleles = getIndexesOfRelevantAlleles(remappedAlleles, targetAlleles, vc.getStart(), genotype);
-                perSampleIndexesOfRelevantAllelesRev = reverseIndexArray(perSampleIndexesOfRelevantAlleles, nonRefAltAlleleIndex, targetNonRefAltAlleleIndex);
+                perSampleIndexesOfRelevantAllelesRev = getIndexsOfRemappedAllelesToTargetAlleles(remappedAlleles, targetAlleles, vc.getStart(), genotype);
 
                 for (int allele = 1; allele < alleleCounts.length; allele++) {
-                    if (alleleCounts[allele] > 0 && perSampleIndexesOfRelevantAllelesRev[allele] > 0) {
+                    if (alleleCounts[allele] > 0 && allele < perSampleIndexesOfRelevantAllelesRev.length && perSampleIndexesOfRelevantAllelesRev[allele] > 0) {
                         likelihoodSums[perSampleIndexesOfRelevantAllelesRev[allele]] += GLDiffBetweenRefAndBest;
                     }
                 }
@@ -719,22 +714,29 @@ public final class ReferenceConfidenceVariantContextMerger {
                 .collect(Collectors.toList());
     }
 
-    private static int[] reverseIndexArray(final int[] inputArray, final int nonRefAltAlleleIndex, final int targetNonRefAltAlleleIndex) {
-        int n = 0;
-        for (int i = 0; i < inputArray.length; ++i) {
-            if (inputArray[i] > n) n = inputArray[i];
-        }
-        int[] result = new int[n+1];
-        for (int i = 0; i < inputArray.length; ++i) {
-            // multiple target allele can map to NON_REF index, but when do reversion only allow map NON_REF index to target NON_REF index
-            if (inputArray[i] == nonRefAltAlleleIndex) {
-                // targetNonRefAltAlleleIndex can be negative
-                result[inputArray[i]] = targetNonRefAltAlleleIndex;
-            } else {
-                result[inputArray[i]] = i;
-            }
-        }
-        return result;
-    }
+    /**
+     * get a mapping from remappedAlleles to targetAlleles, return an array,
+     * rray index is allele index in remappedAlleles, array value is allele index in targetAlleles
+     * @param remappedAlleles
+     * @param targetAlleles
+     * @param position
+     * @param g
+     * @return
+     */
+    private int[] getIndexsOfRemappedAllelesToTargetAlleles(final List<Allele> remappedAlleles, final List<Allele> targetAlleles, final int position, final Genotype g) {
 
+        Utils.nonEmpty(remappedAlleles);
+        Utils.nonEmpty(targetAlleles);
+        
+        final int[] indexMapping = new int[targetAlleles.size()];
+
+        // the reference likelihoods should always map to each other (even if the alleles don't)
+        indexMapping[0] = 0;
+
+        for (int i = 1; i < remappedAlleles.size(); ++i) {
+            indexMapping[i] = targetAlleles.indexOf(remappedAlleles.get(i));  // can be -1 if allele in remappedAlleles is not in targetAlleles
+        }
+
+        return indexMapping;
+    }
 }

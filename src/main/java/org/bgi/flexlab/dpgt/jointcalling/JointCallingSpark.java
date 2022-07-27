@@ -105,18 +105,18 @@ public class JointCallingSpark {
                 subVariantBitSetsBcs.add(sc.broadcast(b.toByteArray()));
             }
 
-            ArrayList<JavaFutureAction<List<String>>> futureActions = new ArrayList<>();
+            ArrayList<JavaFutureAction<List<String>>> combinedGVCFsFutures = new ArrayList<>();
             for (int j = 0; j < subIntervals.size(); ++j) {
                 JavaFutureAction<List<String>> combinedGVCFsFuture = vcfpathsRDDPartitionByCombineParts.mapPartitionsWithIndex(new CombineGVCFsOnSitesSparkFunc(
                     jcOptions.reference, combinePrefix+j+"-", subIntervals.get(j), subVariantBitSetsBcs.get(j)), false)
                     .filter(x -> {return !x.equals("null");})
                     .collectAsync();  // collect async to run on multiple sub intervals at the same time
-                futureActions.add(combinedGVCFsFuture);
+                combinedGVCFsFutures.add(combinedGVCFsFuture);
             }
             ArrayList<List<String>> combinedGVCFsList = new ArrayList<>();
-            for (int j = 0; j < futureActions.size(); ++j) {
+            for (int j = 0; j < combinedGVCFsFutures.size(); ++j) {
                 try {
-                    combinedGVCFsList.add(futureActions.get(j).get());
+                    combinedGVCFsList.add(combinedGVCFsFutures.get(j).get());
                 } catch (Exception e) {
                     logger.error("Failed to get combined gvcfs for interval: {}, {}", subIntervals.get(j), e.getMessage());
                     System.exit(1);
@@ -129,17 +129,29 @@ public class JointCallingSpark {
                 genotypeDir.mkdirs();
             }
             final String genotypePrefix = genotypeDir.getAbsolutePath()+"/"+GENOTYPE_GVCFS_PREFIX;
-            ArrayList<String> genotypeGVCFsList = new ArrayList<>();
+            // genotype partitions for each sub-interval, total partitions is about jcOptions.jobs*PARTITION_COEFFICIENT
+            final int genotypePartitions = (int)Math.ceil(1.0*jcOptions.jobs*PARTITION_COEFFICIENT/subIntervals.size());
+            ArrayList<JavaFutureAction<List<String>>> genotypeGVCFsFutures = new ArrayList<>();
             for (int j = 0; j < subIntervals.size(); ++j) {
                 ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(
-                    subIntervals.get(j), jcOptions.jobs * PARTITION_COEFFICIENT, subVariantBitSets.get(j));
+                    subIntervals.get(j), genotypePartitions, subVariantBitSets.get(j));
                 JavaRDD<SimpleInterval> windowsRDD = sc.parallelize(windows, windows.size());
-                List<String> genotypeGVCFs = windowsRDD.
+                JavaFutureAction<List<String>> genotypeGVCFsFuture = windowsRDD.
                     mapPartitionsWithIndex(new GVCFsSyncGenotyperSparkFunc(jcOptions.reference, combinedGVCFsList.get(j),
                         genotypeHeader, genotypePrefix+j+"-", jcOptions.dbsnp, jcOptions.genotypeArguments), false)
                     .filter(x -> {return !x.equals("null");})
-                    .collect();
-                genotypeGVCFsList.addAll(genotypeGVCFs);
+                    .collectAsync();
+                genotypeGVCFsFutures.add(genotypeGVCFsFuture);
+            }
+            
+            ArrayList<String> genotypeGVCFsList = new ArrayList<>();
+            for (int j = 0; j < genotypeGVCFsFutures.size(); ++j) {
+                try {
+                    genotypeGVCFsList.addAll(genotypeGVCFsFutures.get(j).get());
+                } catch (Exception e) {
+                    logger.error("Failed to get genotyped gvcfs for interval: {}, {}", subIntervals.get(j), e.getMessage());
+                    System.exit(1);
+                }
             }
             
             logger.info("Concating genotyped vcfs in {} to result", interval.toString());
