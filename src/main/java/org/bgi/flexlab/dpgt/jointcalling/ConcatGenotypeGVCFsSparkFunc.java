@@ -31,7 +31,7 @@ public class ConcatGenotypeGVCFsSparkFunc implements Function2<Integer, Iterator
             logger.error("{}", output, e.getMessage());
             System.exit(1);
         }
-        byte[] buffer = new byte[1024*1024*4];  // 8M buffer size
+        byte[] buffer = new byte[1024*1024*4];
         if (headerPath != null) {
             copyBytes(headerPath, bufferedOutputStream, buffer);
         }

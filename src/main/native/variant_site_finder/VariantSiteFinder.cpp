@@ -1,14 +1,17 @@
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <string>
 #include <vector>
+#include <cstdio>
 #include "VariantSiteFinder.h"
 #include "jni_md.h"
 #include "variant_site_finder.hpp"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
-JNIEXPORT jbyteArray JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_VariantSiteFinder_FindVariantSite
-    (JNIEnv * env, jobject java_this, jobjectArray vcfpaths, jstring chrom, jlong start, jlong end)
+JNIEXPORT void JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_VariantSiteFinder_FindVariantSite
+    (JNIEnv * env, jobject java_this, jobjectArray vcfpaths, jstring outpath, jstring chrom, jlong start, jlong end)
 {
     int vcf_count = env->GetArrayLength(vcfpaths);
     std::vector<std::string> vcfpaths_vec(vcf_count, "");
@@ -24,19 +27,20 @@ JNIEXPORT jbyteArray JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_VariantSiteF
     std::vector<uint8_t> site_bitset_as_bytes = FindVariantSite(
         vcfpaths_vec, chrom_cstr, start, end).toUint8Vector();
     
-    // convert to java byte(signed char) type
-    jbyte *bytes = new jbyte[site_bitset_as_bytes.size()];
-    for (size_t i = 0; i < site_bitset_as_bytes.size(); ++i) {
-        bytes[i] = site_bitset_as_bytes[i];
+    // serialize to disk
+    const char *outpath_cstr = env->GetStringUTFChars(outpath, NULL);
+    FILE *outfp = fopen(outpath_cstr, "wb");
+    if (outfp != NULL) {
+        const int32_t size = site_bitset_as_bytes.size();
+        fwrite(&size, sizeof(int32_t), 1, outfp);  // first 4-bytes is the size of bitset bytes
+        fwrite(site_bitset_as_bytes.data(), 1, size, outfp);
+        fclose(outfp);
+    } else {
+        std::string error_msg = "failed to open: " + std::string(outpath_cstr);
+        perror(error_msg.c_str());
+        std::exit(1);
     }
     
-    jbyteArray result = env->NewByteArray(site_bitset_as_bytes.size());
-    env->SetByteArrayRegion(result, 0, site_bitset_as_bytes.size(),
-        bytes);
-    
-    delete [] bytes;
-
+    env->ReleaseStringUTFChars(outpath, outpath_cstr);
     env->ReleaseStringUTFChars(chrom, chrom_cstr);
-
-    return result;
 }

@@ -12,8 +12,8 @@ extern "C" {
  * Method:    FindVariantSite
  * Signature: ([Ljava/lang/String;Ljava/lang/String;JJ)[B
  */
-JNIEXPORT jbyteArray JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_VariantSiteFinder_FindVariantSite
-  (JNIEnv *, jobject, jobjectArray, jstring, jlong, jlong);
+JNIEXPORT void JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_VariantSiteFinder_FindVariantSite
+  (JNIEnv *, jobject, jobjectArray, jstring, jstring, jlong, jlong);
 
 #ifdef __cplusplus
 }

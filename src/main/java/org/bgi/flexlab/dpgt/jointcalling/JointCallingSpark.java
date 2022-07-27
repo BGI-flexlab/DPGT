@@ -30,6 +30,7 @@ public class JointCallingSpark {
 
     private static final String HEADER_DIR = "header";  // outdir/header
     private static final String GENOTYPE_HEADER = "genotype_header.vcf.gz";  // outdir/header/genotype_header.vcf.gz
+    private static final String VARIANT_SITE_PREFIX = "variant_site.";
     private static final String COMBINE_GVCFS_PREFIX = "combine."; // outdir/combine.idx
     private static final String GENOTYPE_GVCFS_PREFIX = "genotype."; // outdir/genotype.idx
     private static final String OUTPUT_NAME = "result.vcf.gz"; // outdir/result.vcf.gz
@@ -79,11 +80,25 @@ public class JointCallingSpark {
             logger.info("Cycle {}/{}", i+1, intervalsToTravers.size());
             logger.info("Processing interval: {}", interval.toString());
             logger.info("Finding variant sites in {}", interval.toString());
-            BitSet variantSiteSetData = vcfpathsRDDPartitionByJobs.
-                mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false).
-                reduce((x, y) -> {x.or(y); return x;});
 
-            if (variantSiteSetData.isEmpty()) {
+            File variantSiteDir = new File(jcOptions.output+"/"+VARIANT_SITE_PREFIX+i);
+            if (!variantSiteDir.exists()) {
+                variantSiteDir.mkdirs();
+            }
+            final String variantSitePrefix = variantSiteDir.getAbsolutePath()+"/"+VARIANT_SITE_PREFIX;
+            List<String> variantSiteFiles = vcfpathsRDDPartitionByJobs
+                .mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(variantSitePrefix, interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false)
+                .collect();
+            
+            JavaRDD<String> variantSiteFilesRDD = sc.parallelize(variantSiteFiles, 1);
+            List<BitSet> variantSiteSetDatas = variantSiteFilesRDD
+                .mapPartitionsWithIndex(new CombineVariantSiteSetSparkFunc(variantSitePrefix), false)
+                .collect();
+
+            BitSet variantSiteSetData = null;
+            if (!variantSiteSetDatas.isEmpty()) variantSiteSetData = variantSiteSetDatas.get(0);
+            
+            if (variantSiteSetData == null || variantSiteSetData.isEmpty()) {
                 logger.info("skip interval: {}, because there is no variant site in it.", interval.toString());
                 continue;
             }
@@ -136,8 +151,8 @@ public class JointCallingSpark {
                 ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(
                     subIntervals.get(j), genotypePartitions, subVariantBitSets.get(j));
                 JavaRDD<SimpleInterval> windowsRDD = sc.parallelize(windows, windows.size());
-                JavaFutureAction<List<String>> genotypeGVCFsFuture = windowsRDD.
-                    mapPartitionsWithIndex(new GVCFsSyncGenotyperSparkFunc(jcOptions.reference, combinedGVCFsList.get(j),
+                JavaFutureAction<List<String>> genotypeGVCFsFuture = windowsRDD
+                    .mapPartitionsWithIndex(new GVCFsSyncGenotyperSparkFunc(jcOptions.reference, combinedGVCFsList.get(j),
                         genotypeHeader, genotypePrefix+j+"-", jcOptions.dbsnp, jcOptions.genotypeArguments), false)
                     .filter(x -> {return !x.equals("null");})
                     .collectAsync();

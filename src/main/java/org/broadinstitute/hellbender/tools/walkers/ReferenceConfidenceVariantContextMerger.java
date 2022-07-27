@@ -728,7 +728,7 @@ public final class ReferenceConfidenceVariantContextMerger {
         Utils.nonEmpty(remappedAlleles);
         Utils.nonEmpty(targetAlleles);
         
-        final int[] indexMapping = new int[targetAlleles.size()];
+        final int[] indexMapping = new int[remappedAlleles.size()];
 
         // the reference likelihoods should always map to each other (even if the alleles don't)
         indexMapping[0] = 0;
