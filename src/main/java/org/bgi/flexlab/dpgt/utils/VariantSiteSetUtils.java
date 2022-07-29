@@ -85,7 +85,7 @@ public class VariantSiteSetUtils {
         ArrayList<BitSet> result = new ArrayList<>();
         for (SimpleInterval interval: subIntervals) {
             int i = interval.getStart() - largeInterval.getStart();
-            int j = interval.getEnd() - largeInterval.getStart();
+            int j = interval.getEnd() - largeInterval.getStart() + 1;
             result.add(largeBitSet.get(i, j));
         }
         return result;
