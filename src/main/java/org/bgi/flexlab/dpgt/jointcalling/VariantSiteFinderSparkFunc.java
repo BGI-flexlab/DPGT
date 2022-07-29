@@ -29,7 +29,7 @@ public class VariantSiteFinderSparkFunc implements Function2<Integer, Iterator<S
         }
         String[] vcfpathsArray  = new String[vcfpaths.size()];
         vcfpaths.toArray(vcfpathsArray);
-        String outpath = prefix + idx + ".site";
+        String outpath = prefix + idx + JointCallingSparkConsts.VARIANT_SITE_SUFFIX;
         VariantSiteFinder vf = new VariantSiteFinder();
         // call native c++ function to find variant site, return variant site bitset as byte array
         vf.FindVariantSite(vcfpathsArray, outpath, this.chrom, (long)this.start, (long)this.end);

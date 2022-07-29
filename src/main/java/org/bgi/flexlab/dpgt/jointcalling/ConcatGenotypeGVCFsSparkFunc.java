@@ -24,6 +24,9 @@ public class ConcatGenotypeGVCFsSparkFunc implements Function2<Integer, Iterator
 
     @Override public Iterator<String> call(Integer idx, Iterator<String> vcfpathIter) {
         File outputFile = new File(output);
+        if (headerPath != null && outputFile.exists()) {
+            outputFile.delete();
+        }
         BufferedOutputStream bufferedOutputStream = null;
         try {
             bufferedOutputStream = new BufferedOutputStream(new FileOutputStream(outputFile, true));

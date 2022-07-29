@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.bgi.flexlab</groupId>
   <artifactId>dpgt</artifactId>
-  <version>0.1.0.0</version>
+  <version>1.1.0.0</version>
 
   <properties>
     <maven.compiler.source>1.8</maven.compiler.source>
@@ -17,11 +17,6 @@
     <maven-surefire-plugin.version>3.0.0-M5</maven-surefire-plugin.version>
     <jacoco-maven-plugin.version>0.8.4</jacoco-maven-plugin.version>
     <maven-javadoc-plugin.version>3.0.0</maven-javadoc-plugin.version>
-    <!-- JaCoCo thresholds. Increase gradually as you add tests. -->
-    <jacoco.unit-tests.limit.instruction-ratio>0%</jacoco.unit-tests.limit.instruction-ratio>
-    <jacoco.unit-tests.limit.branch-ratio>0%</jacoco.unit-tests.limit.branch-ratio>
-    <jacoco.unit-tests.limit.class-complexity>20</jacoco.unit-tests.limit.class-complexity>
-    <jacoco.unit-tests.limit.method-complexity>5</jacoco.unit-tests.limit.method-complexity>
   </properties>
 
   <dependencies>
@@ -1245,6 +1240,7 @@
       <scope>compile</scope>
       <exclusions>
         <exclusion>
+          <groupId>javax.servlet</groupId>
           <artifactId>javax.servlet</artifactId>
         </exclusion>
         <exclusion>
@@ -1725,6 +1721,11 @@
           <groupId>com.google.guava</groupId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.alibaba</groupId>
+      <artifactId>fastjson</artifactId>
+      <version>2.0.10</version>
     </dependency>
   </dependencies>
 

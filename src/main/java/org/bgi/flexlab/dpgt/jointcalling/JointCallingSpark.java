@@ -1,23 +1,14 @@
 package org.bgi.flexlab.dpgt.jointcalling;
 
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.broadcast.Broadcast;
-import org.bgi.flexlab.dpgt.utils.SimpleIntervalUtils;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
-import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeCalculationArgumentCollection;
-import org.apache.spark.api.java.JavaFutureAction;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.SparkConf;
-
+import java.util.ArrayList;
 import java.util.BitSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
-
 import java.util.List;
-import java.util.ArrayList;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,20 +19,13 @@ import org.apache.commons.io.FileUtils;
 public class JointCallingSpark {
     private static final Logger logger = LoggerFactory.getLogger(JointCallingSpark.class);
 
-    private static final String HEADER_DIR = "header";  // outdir/header
-    private static final String GENOTYPE_HEADER = "genotype_header.vcf.gz";  // outdir/header/genotype_header.vcf.gz
-    private static final String VARIANT_SITE_PREFIX = "variant_site.";
-    private static final String COMBINE_GVCFS_PREFIX = "combine."; // outdir/combine.idx
-    private static final String GENOTYPE_GVCFS_PREFIX = "genotype."; // outdir/genotype.idx
-    private static final String OUTPUT_NAME = "result.vcf.gz"; // outdir/result.vcf.gz
-    
     private static final int PARTITION_COEFFICIENT = 4;
 
     static{
         try{
             System.loadLibrary("cdpgt");
         }catch(UnsatisfiedLinkError e){
-            logger.error("Failed to load Native code library cdpgt.\n" + e);
+            logger.error("Failed to load Native code library cdpgt. {}", e.getMessage());
             System.exit(1);
         }
     }
@@ -56,6 +40,14 @@ public class JointCallingSpark {
         PropertyConfigurator.configure(log4jPropertiestIs);
         JointCallingSparkOptions jcOptions = new JointCallingSparkOptions();
         jcOptions.parse(args);
+
+        ConcatGenotypeGVCFsJob concatGVCFsJob0 = new ConcatGenotypeGVCFsJob(jcOptions);
+        if (concatGVCFsJob0.isSuccess()) {
+            logger.info("Joint Calling result {} is exists and job status was success for previous run. Please specify a new output directory or remove {}",
+                jcOptions.getOutputVCFPath(), jcOptions.getOutputVCFPath());
+            System.exit(0);
+        }
+
         List<SimpleInterval> intervalsToTravers = jcOptions.getIntervalsToTravers();
 
         SparkConf conf = new SparkConf().setAppName("JointCallingSpark");
@@ -64,164 +56,70 @@ public class JointCallingSpark {
 
         JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc.textFile(addFilePrefixIfNeed(jcOptions.input), jcOptions.numCombinePartitions);
 
-        File headerDir = new File(jcOptions.output+"/"+HEADER_DIR);
-        if (!headerDir.exists()) {
-            headerDir.mkdirs();
-        }
-        combineVCFHeaders(vcfpathsRDDPartitionByCombineParts, headerDir.getAbsolutePath(), jcOptions.genotypeArguments);
-        final String genotypeHeader = headerDir.getAbsolutePath() + "/" + GENOTYPE_HEADER;
+        CombineVCFHeaderJob combineVCFHeaderJob = new CombineVCFHeaderJob(vcfpathsRDDPartitionByCombineParts, jcOptions);
+        final String genotypeHeader = combineVCFHeaderJob.run();
 
         JavaRDD<String> vcfpathsRDDPartitionByJobs = sc.textFile(addFilePrefixIfNeed(jcOptions.input), PARTITION_COEFFICIENT * jcOptions.jobs);
 
-        final String outputPath = jcOptions.output + "/" + OUTPUT_NAME;
+        ArrayList<File> allGenotypeDirs = new ArrayList<>();
+        ArrayList<String> allGenotypeGVCFsList = new ArrayList<>();
 
         for (int i = 0; i < intervalsToTravers.size(); ++i) {
             SimpleInterval interval = intervalsToTravers.get(i);
-            logger.info("Cycle {}/{}", i+1, intervalsToTravers.size());
-            logger.info("Processing interval: {}", interval.toString());
-            logger.info("Finding variant sites in {}", interval.toString());
-
-            File variantSiteDir = new File(jcOptions.output+"/"+VARIANT_SITE_PREFIX+i);
-            if (!variantSiteDir.exists()) {
-                variantSiteDir.mkdirs();
-            }
-            final String variantSitePrefix = variantSiteDir.getAbsolutePath()+"/"+VARIANT_SITE_PREFIX;
-            List<String> variantSiteFiles = vcfpathsRDDPartitionByJobs
-                .mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(variantSitePrefix, interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false)
-                .collect();
-            
-            JavaRDD<String> variantSiteFilesRDD = sc.parallelize(variantSiteFiles, 1);
-            List<BitSet> variantSiteSetDatas = variantSiteFilesRDD
-                .mapPartitionsWithIndex(new CombineVariantSiteSetSparkFunc(variantSitePrefix), false)
-                .collect();
-
-            BitSet variantSiteSetData = null;
-            if (!variantSiteSetDatas.isEmpty()) variantSiteSetData = variantSiteSetDatas.get(0);
-            
-            if (variantSiteSetData == null || variantSiteSetData.isEmpty()) {
-                logger.info("skip interval: {}, because there is no variant site in it.", interval.toString());
+            final String cycleStr = String.format("%d/%d", i+1, intervalsToTravers.size());
+            logger.info("Cycle {}", cycleStr);
+            logger.info("Processing interval: {} ({})", interval.toString(), cycleStr);
+            // used for check is genotyping job is done for i-th iteration, if it is done we simply goto next iteration without
+            // run or check variant finding job and combining gvcfs job
+            GVCFsSyncGenotyperJob genotyperJob0 = new GVCFsSyncGenotyperJob(jcOptions, i);
+            if (genotyperJob0.isSuccess()) {
+                logger.info("Genotype gvcfs was success for interval: {} ({})", interval.toString(), cycleStr);
+                allGenotypeGVCFsList.addAll(genotyperJob0.load());
                 continue;
             }
 
-            logger.info("Combining gvcfs in {}", interval.toString());
-            File combineDir = new File(jcOptions.output+"/"+COMBINE_GVCFS_PREFIX+i);
-            if (!combineDir.exists()) {
-                combineDir.mkdirs();
-            }
-            final String combinePrefix = combineDir.getAbsolutePath()+"/"+COMBINE_GVCFS_PREFIX;
-
-            ArrayList<SimpleInterval> subIntervals = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(interval,
-                Math.max((int)Math.ceil(PARTITION_COEFFICIENT*1.0*jcOptions.jobs/jcOptions.numCombinePartitions), 1),
-                variantSiteSetData);
-            ArrayList<BitSet> subVariantBitSets = getSubBitSets(variantSiteSetData, interval, subIntervals);
-            ArrayList<Broadcast<byte[]>> subVariantBitSetsBcs = new ArrayList<>();
-            for (BitSet b: subVariantBitSets)
-            {
-                subVariantBitSetsBcs.add(sc.broadcast(b.toByteArray()));
-            }
-
-            ArrayList<JavaFutureAction<List<String>>> combinedGVCFsFutures = new ArrayList<>();
-            for (int j = 0; j < subIntervals.size(); ++j) {
-                JavaFutureAction<List<String>> combinedGVCFsFuture = vcfpathsRDDPartitionByCombineParts.mapPartitionsWithIndex(new CombineGVCFsOnSitesSparkFunc(
-                    jcOptions.reference, combinePrefix+j+"-", subIntervals.get(j), subVariantBitSetsBcs.get(j)), false)
-                    .filter(x -> {return !x.equals("null");})
-                    .collectAsync();  // collect async to run on multiple sub intervals at the same time
-                combinedGVCFsFutures.add(combinedGVCFsFuture);
-            }
-            ArrayList<List<String>> combinedGVCFsList = new ArrayList<>();
-            for (int j = 0; j < combinedGVCFsFutures.size(); ++j) {
-                try {
-                    combinedGVCFsList.add(combinedGVCFsFutures.get(j).get());
-                } catch (Exception e) {
-                    logger.error("Failed to get combined gvcfs for interval: {}, {}", subIntervals.get(j), e.getMessage());
-                    System.exit(1);
-                }
-            }
-
-            logger.info("Genotyping gvcfs in {}", interval.toString());
-            File genotypeDir = new File(jcOptions.output+"/"+GENOTYPE_GVCFS_PREFIX+i);
-            if (!genotypeDir.exists()) {
-                genotypeDir.mkdirs();
-            }
-            final String genotypePrefix = genotypeDir.getAbsolutePath()+"/"+GENOTYPE_GVCFS_PREFIX;
-            // genotype partitions for each sub-interval, total partitions is about jcOptions.jobs*PARTITION_COEFFICIENT
-            final int genotypePartitions = (int)Math.ceil(1.0*jcOptions.jobs*PARTITION_COEFFICIENT/subIntervals.size());
-            ArrayList<JavaFutureAction<List<String>>> genotypeGVCFsFutures = new ArrayList<>();
-            for (int j = 0; j < subIntervals.size(); ++j) {
-                ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(
-                    subIntervals.get(j), genotypePartitions, subVariantBitSets.get(j));
-                JavaRDD<SimpleInterval> windowsRDD = sc.parallelize(windows, windows.size());
-                JavaFutureAction<List<String>> genotypeGVCFsFuture = windowsRDD
-                    .mapPartitionsWithIndex(new GVCFsSyncGenotyperSparkFunc(jcOptions.reference, combinedGVCFsList.get(j),
-                        genotypeHeader, genotypePrefix+j+"-", jcOptions.dbsnp, jcOptions.genotypeArguments), false)
-                    .filter(x -> {return !x.equals("null");})
-                    .collectAsync();
-                genotypeGVCFsFutures.add(genotypeGVCFsFuture);
-            }
+            logger.info("Finding variant sites in {} ({})", interval.toString(), cycleStr);
+            VariantFinderJob variantFinderJob = new VariantFinderJob(vcfpathsRDDPartitionByJobs, jcOptions, sc, i, interval);
+            BitSet variantSiteSetData = variantFinderJob.run();
             
-            ArrayList<String> genotypeGVCFsList = new ArrayList<>();
-            for (int j = 0; j < genotypeGVCFsFutures.size(); ++j) {
-                try {
-                    genotypeGVCFsList.addAll(genotypeGVCFsFutures.get(j).get());
-                } catch (Exception e) {
-                    logger.error("Failed to get genotyped gvcfs for interval: {}, {}", subIntervals.get(j), e.getMessage());
-                    System.exit(1);
-                }
+            if (variantSiteSetData == null || variantSiteSetData.isEmpty()) {
+                logger.info("skip interval: {}, because there is no variant site in it ({})", interval.toString(), cycleStr);
+                continue;
             }
-            
-            logger.info("Concating genotyped vcfs in {} to result", interval.toString());
-            JavaRDD<String> concateGVCFsRDD = sc.parallelize(genotypeGVCFsList, 1);
-            concateGVCFsRDD.mapPartitionsWithIndex(new ConcatGenotypeGVCFsSparkFunc((i==0 ? genotypeHeader : null), outputPath), false).collect();
+
+            logger.info("Combining gvcfs in {} ({})", interval.toString(), cycleStr);
+            CombineGVCFsOnSiteJob combineGVCFsOnSiteJob = new CombineGVCFsOnSiteJob(
+                vcfpathsRDDPartitionByCombineParts, jcOptions, sc, i, interval, PARTITION_COEFFICIENT, variantSiteSetData);
+            combineGVCFsOnSiteJob.run();
+
+            logger.info("Genotyping gvcfs in {} ({})", interval.toString(), cycleStr);
+            GVCFsSyncGenotyperJob genotyperJob = new GVCFsSyncGenotyperJob(jcOptions, sc, i,
+                combineGVCFsOnSiteJob.subIntervals, combineGVCFsOnSiteJob.subVariantBitSets, combineGVCFsOnSiteJob.combinedGVCFsList,
+                PARTITION_COEFFICIENT, genotypeHeader);
+            List<String> genotypeGVCFsList = genotyperJob.run();
+            allGenotypeGVCFsList.addAll(genotypeGVCFsList);
+            allGenotypeDirs.add(genotyperJob.genotypeDir);
 
             if (jcOptions.deleteIntermediateResults) {
-                FileUtils.deleteDirectory(combineDir);
-                FileUtils.deleteDirectory(genotypeDir);
+                FileUtils.deleteDirectory(variantFinderJob.variantSiteDir);
+                FileUtils.deleteDirectory(combineGVCFsOnSiteJob.combineDir);
             }
         }
 
+        logger.info("Concatenating genotyped vcfs to result");
+        ConcatGenotypeGVCFsJob concatGVCFsJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, allGenotypeGVCFsList, genotypeHeader, jcOptions.getOutputVCFPath());
+        concatGVCFsJob.run();
+
         if (jcOptions.deleteIntermediateResults) {
-            FileUtils.deleteDirectory(headerDir);
+            FileUtils.deleteDirectory(combineVCFHeaderJob.headerDir);
+            for (final File d: allGenotypeDirs) {
+                FileUtils.deleteDirectory(d);
+            }
         }
 
         sc.close();
     }
 
-    private static VCFHeader combineVCFHeaders(JavaRDD<String> vcfpathsRDD, final String outdir, final GenotypeCalculationArgumentCollection genotypeArgs) {
-        List<String> combinedHeaders = vcfpathsRDD.mapPartitionsWithIndex(new CombineVCFHeadersSparkFunc(outdir), false)
-            .filter(x -> {return !x.equals("null");})
-            .collect();
-
-        // combine headers of each partition to generate combined header for all input vcfs
-        VCFHeaderCombiner combiner = new VCFHeaderCombiner();
-        String combinedHeader = outdir+"/header.vcf.gz";
-        String[] combinedHeadersArray = new String[combinedHeaders.size()];
-        combinedHeaders.toArray(combinedHeadersArray);
-        combiner.Combine(combinedHeadersArray, combinedHeader);
-
-        // make combined header for genotyping by add genotyping specific headers
-        GVCFsSyncGenotyper genotyper = new GVCFsSyncGenotyper();
-        VCFHeader combinedHeaderForGenotyping = genotyper.makeCombinedHeaderForGenotyping(combinedHeader, genotypeArgs);
-        String combinedHeaderForGenotypingPath = outdir+"/"+GENOTYPE_HEADER;
-        VariantContextWriterBuilder builder = new VariantContextWriterBuilder();
-        builder.setOutputFile(combinedHeaderForGenotypingPath);
-        builder.setOutputFileType(VariantContextWriterBuilder.OutputType.BLOCK_COMPRESSED_VCF);
-        VariantContextWriter writer = builder.build();
-        writer.writeHeader(combinedHeaderForGenotyping);
-        writer.close();
-        
-        return combinedHeaderForGenotyping;
-    }
-
-    private static ArrayList<BitSet> getSubBitSets(final BitSet largeBitSet, final SimpleInterval largeInterval, final List<SimpleInterval> subIntervals)
-    {
-        ArrayList<BitSet> result = new ArrayList<>();
-        for (SimpleInterval interval: subIntervals) {
-            int i = interval.getStart() - largeInterval.getStart();
-            int j = interval.getEnd() - largeInterval.getStart();
-            result.add(largeBitSet.get(i, j));
-        }
-        return result;
-    }
 
     /**
      * add file:// prefix if need

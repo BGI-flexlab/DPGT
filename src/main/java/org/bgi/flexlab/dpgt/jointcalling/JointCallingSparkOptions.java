@@ -33,7 +33,7 @@ public class JointCallingSparkOptions implements Serializable {
     private HelpFormatter helpFormatter = new HelpFormatter();
 
     // program meta data
-    private static final String VERSION = "0.2.0.0";
+    private static final String VERSION = "1.1.0.0";
 
     private ReferenceDataSource referenceDataSrc = null;
     private SAMSequenceDictionary sequenceDict = null;
@@ -64,7 +64,7 @@ public class JointCallingSparkOptions implements Serializable {
         addOption("o", "output", true, "output directory.", true, "DIR");
         addOption("r", "reference", true, "reference fasta file.", true, "FILE");
         addOption("l", "target-regions", true, "target regions to process.", false, "STRING");
-        addOption("j", "jobs", true, "number of spark exculators.", false, "INT");
+        addOption("j", "jobs", true, "number of spark exculators. [10]", false, "INT");
         addOption("n", "num-combine-partitions", true, "number of partitions for combining gvcfs. [10]", false, "INT");
         addOption("w", "window", true, "window size for each combine-genotype cycle. [300M]", false, "INT");
         addOption("d", "delete", true, "delete combine and genotype gvcf intermediate results. Possible values: true, false. [true]", false, "Boolean");
@@ -75,7 +75,7 @@ public class JointCallingSparkOptions implements Serializable {
         addOption(null,"indel-heterozygosity", true, "heterozygosity for indel calling. [1.25E-4]", false, "FLOAT");
         addOption(null,"heterozygosity-stdev", true, "standard deviation of heterozygosity for SNP and indel calling. [0.01]", false, "FLOAT");
         addOption(null,"ploidy", true, "ploidy (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy). [2]", false, "INT");
-        addOption(null,"local", false, "run spark in local mode, useful for debug", false, null);
+        addOption(null,"local", false, "run spark in local mode, useful for debug.", false, null);
         addOption("h", "help", false, "print this message and exit.", false, null);
         addOption("V", "version", false, "show version.", false, null);
     }
@@ -216,6 +216,10 @@ public class JointCallingSparkOptions implements Serializable {
             }
         }
         return result;
+    }
+
+    public String getOutputVCFPath() {
+        return Paths.get(output, JointCallingSparkConsts.OUTPUT_NAME).toString();
     }
 
     protected String[] getOptionValues(String opt, String[] defaultValue) {
