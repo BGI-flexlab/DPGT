@@ -43,7 +43,7 @@ public class JointCallingSpark {
 
         ConcatGenotypeGVCFsJob concatGVCFsJob0 = new ConcatGenotypeGVCFsJob(jcOptions);
         if (concatGVCFsJob0.isSuccess()) {
-            logger.info("Joint Calling result {} is exists and job status was success for previous run. Please specify a new output directory or remove {}",
+            logger.info("Joint Calling result {} is exists and previous job state was success. Please specify a new output directory or remove {}",
                 jcOptions.getOutputVCFPath(), jcOptions.getOutputVCFPath());
             System.exit(0);
         }
