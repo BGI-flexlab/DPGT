@@ -87,7 +87,7 @@ public class MultiVariantSyncReader {
                 try {
                     vcs.add(iter.next());
                 } catch (Exception e) {
-                    logger.error("The vcf file %s has fewer lines than the first vcf file %s, %s",
+                    logger.error("The vcf file {} has fewer lines than the first vcf file {}, {}",
                         vcfpaths.get(n), vcfpaths.get(0), e.getMessage());
                     System.exit(1);
                 }
