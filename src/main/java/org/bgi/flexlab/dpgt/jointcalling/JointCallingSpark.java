@@ -69,7 +69,7 @@ public class JointCallingSpark {
             final String cycleStr = String.format("%d/%d", i+1, intervalsToTravers.size());
             logger.info("Cycle {}", cycleStr);
             logger.info("Processing interval: {} ({})", interval.toString(), cycleStr);
-            // used for check is genotyping job is done for i-th iteration, if it is done we simply goto next iteration without
+            // used for check if genotyping job is done for i-th iteration, if it is done we simply goto next iteration without
             // run or check variant finding job and combining gvcfs job
             GVCFsSyncGenotyperJob genotyperJob0 = new GVCFsSyncGenotyperJob(jcOptions, i);
             if (genotyperJob0.isSuccess()) {
