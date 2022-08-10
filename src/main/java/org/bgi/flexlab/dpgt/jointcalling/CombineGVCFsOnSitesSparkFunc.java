@@ -5,6 +5,7 @@ import java.util.Iterator;
 import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.broadcast.Broadcast;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
+import org.bgi.flexlab.dpgt.utils.NativeLibraryLoader;
 
 
 public class CombineGVCFsOnSitesSparkFunc implements Function2<Integer, Iterator<String>, Iterator<String>> {
@@ -12,6 +13,11 @@ public class CombineGVCFsOnSitesSparkFunc implements Function2<Integer, Iterator
     public String prefix;
     public SimpleInterval interval;
     Broadcast<byte[]> variantSiteSetBytesBc;
+
+    static {
+        NativeLibraryLoader.load();
+    }
+
     public CombineGVCFsOnSitesSparkFunc(final String refpath,
         final String prefix, final SimpleInterval interval, Broadcast<byte[]> variantSiteSetBytesBc)
     {

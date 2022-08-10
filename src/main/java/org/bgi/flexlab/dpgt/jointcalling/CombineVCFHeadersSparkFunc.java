@@ -2,18 +2,15 @@ package org.bgi.flexlab.dpgt.jointcalling;
 
 import java.util.*;
 import java.util.Iterator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.apache.spark.api.java.function.Function2;
-import java.nio.file.Paths;
-import htsjdk.variant.vcf.VCFHeader;
-import htsjdk.variant.vcf.VCFFileReader;
-import htsjdk.variant.vcf.VCFUtils;
-import htsjdk.variant.variantcontext.writer.VariantContextWriter;
-import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
+import org.bgi.flexlab.dpgt.utils.NativeLibraryLoader;
 
 public class CombineVCFHeadersSparkFunc implements Function2<Integer, Iterator<String>, Iterator<String>> {
     public String outdir;
+
+    static {
+        NativeLibraryLoader.load();
+    }
 
     public CombineVCFHeadersSparkFunc(final String outdir) {
         this.outdir = outdir;

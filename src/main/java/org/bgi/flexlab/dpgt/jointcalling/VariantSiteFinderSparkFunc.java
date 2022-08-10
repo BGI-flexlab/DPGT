@@ -3,6 +3,7 @@ package org.bgi.flexlab.dpgt.jointcalling;
 import java.util.*;
 import java.util.Iterator;
 import org.apache.spark.api.java.function.Function2;
+import org.bgi.flexlab.dpgt.utils.NativeLibraryLoader;
 
 
 public class VariantSiteFinderSparkFunc implements Function2<Integer, Iterator<String>, Iterator<String>> {
@@ -10,6 +11,11 @@ public class VariantSiteFinderSparkFunc implements Function2<Integer, Iterator<S
     public String chrom;
     public int start;
     public int end;
+
+    static {
+        NativeLibraryLoader.load();
+    }
+
     /**
      * variant site finder spark function
      * @param chrom chromosome

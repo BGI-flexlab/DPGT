@@ -12,6 +12,7 @@ import java.util.List;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import org.bgi.flexlab.dpgt.utils.NativeLibraryLoader;
 
 import org.apache.log4j.PropertyConfigurator;
 import org.apache.commons.io.FileUtils;
@@ -22,12 +23,7 @@ public class JointCallingSpark {
     private static final int PARTITION_COEFFICIENT = 4;
 
     static{
-        try{
-            System.loadLibrary("cdpgt");
-        }catch(UnsatisfiedLinkError e){
-            logger.error("Failed to load Native code library cdpgt. {}", e.getMessage());
-            System.exit(1);
-        }
+        NativeLibraryLoader.load();
     }
 
     public static void main(String[] args) throws Exception {
@@ -52,6 +48,8 @@ public class JointCallingSpark {
 
         SparkConf conf = new SparkConf().setAppName("JointCallingSpark");
         if (jcOptions.uselocalMaster) conf.setMaster("local["+jcOptions.jobs+"]");
+        if (conf.get("spark.master").startsWith("local")) jcOptions.uselocalMaster = true;
+        NativeLibraryLoader.isLocal = jcOptions.uselocalMaster;
         JavaSparkContext sc = new JavaSparkContext(conf);
 
         JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc.textFile(addFilePrefixIfNeed(jcOptions.input), jcOptions.numCombinePartitions);

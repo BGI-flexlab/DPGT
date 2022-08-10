@@ -1,6 +1,7 @@
 package org.bgi.flexlab.dpgt.jointcalling;
 
 import java.util.List;
+import java.io.File;
 import java.util.Arrays;
 import org.bgi.flexlab.dpgt.utils.DPGTJob;
 import org.apache.spark.api.java.JavaRDD;
@@ -18,7 +19,8 @@ public class ConcatGenotypeGVCFsJob extends DPGTJob<Integer> {
         this.sc = sc;
         this.genotypeGVCFsList = genotypeGVCFsList;
         this.genotypeHeader = genotypeHeader;
-        this.outputPath = outputPath;
+        File outputFile = new File(outputPath);
+        this.outputPath = outputFile.getAbsolutePath();
         this.stateFile = this.jcOptions.output + "/" + JointCallingSparkConsts.JOB_STATE + "/" + JointCallingSparkConsts.CONCAT_GENOTYPE_GVCFS;
     }
 
