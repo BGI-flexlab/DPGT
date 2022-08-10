@@ -126,6 +126,14 @@
           <artifactId>servlet-api</artifactId>
           <groupId>*</groupId>
         </exclusion>
+        <exclusion>
+          <artifactId>guava</artifactId>
+          <groupId>com.google.guava</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>gkl</artifactId>
+          <groupId>com.intel.gkl</groupId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -223,7 +231,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>18.0</version>
+      <version>31.1-jre</version>
       <scope>compile</scope>
       <exclusions>
         <exclusion>
@@ -404,7 +412,7 @@
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-api</artifactId>
-      <version>2.3</version>
+      <version>2.17.2</version>
       <scope>compile</scope>
       <exclusions>
         <exclusion>
@@ -440,7 +448,7 @@
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>
-      <version>2.3</version>
+      <version>2.17.2</version>
       <scope>compile</scope>
       <exclusions>
         <exclusion>
@@ -476,7 +484,7 @@
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-jcl</artifactId>
-      <version>2.3</version>
+      <version>2.17.2</version>
       <scope>compile</scope>
       <exclusions>
         <exclusion>
@@ -656,7 +664,7 @@
     <dependency>
       <groupId>commons-io</groupId>
       <artifactId>commons-io</artifactId>
-      <version>2.5</version>
+      <version>2.11.0</version>
       <scope>compile</scope>
       <exclusions>
         <exclusion>
@@ -718,6 +726,10 @@
         </exclusion>
         <exclusion>
           <artifactId>guava-jdk5</artifactId>
+          <groupId>com.google.guava</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>guava</artifactId>
           <groupId>com.google.guava</groupId>
         </exclusion>
         <exclusion>
@@ -1033,62 +1045,6 @@
         </exclusion>
       </exclusions>
     </dependency>
-    <!-- <dependency>
-      <groupId>org.bdgenomics.adam</groupId>
-      <artifactId>adam-core-spark2_2.12</artifactId>
-      <version>0.27.0</version>
-      <scope>compile</scope>
-      <exclusions>
-        <exclusion>
-          <artifactId>*</artifactId>
-          <groupId>org.slf4j</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>*</artifactId>
-          <groupId>org.scala-lang</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>hadoop-bam</artifactId>
-          <groupId>*</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>javax.servlet</artifactId>
-          <groupId>*</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>junit</artifactId>
-          <groupId>junit</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>slf4j-jdk14</artifactId>
-          <groupId>org.slf4j</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>jul-to-slf4j</artifactId>
-          <groupId>*</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>*</artifactId>
-          <groupId>org.apache.hadoop</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>guava-jdk5</artifactId>
-          <groupId>com.google.guava</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>*</artifactId>
-          <groupId>com.esotericsoftware.kryo</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>kryo</artifactId>
-          <groupId>*</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>servlet-api</artifactId>
-          <groupId>*</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency> -->
     <dependency>
       <groupId>org.jgrapht</groupId>
       <artifactId>jgrapht-core</artifactId>
@@ -1649,7 +1605,7 @@
     <dependency>
       <groupId>org.objenesis</groupId>
       <artifactId>objenesis</artifactId>
-      <version>2.1</version>
+      <version>2.6</version>
       <scope>compile</scope>
       <exclusions>
         <exclusion>
@@ -1720,6 +1676,10 @@
           <artifactId>guava-jdk5</artifactId>
           <groupId>com.google.guava</groupId>
         </exclusion>
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
     <dependency>
@@ -1729,13 +1689,66 @@
     </dependency>
   </dependencies>
 
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.objenesis</groupId>
+        <artifactId>objenesis</artifactId>
+        <version>2.6</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.fommil.netlib</groupId>
+        <artifactId>core</artifactId>
+        <version>1.1.2</version>
+      </dependency>
+      <dependency>
+        <groupId>com.github.samtools</groupId>
+        <artifactId>htsjdk</artifactId>
+        <version>2.24.1</version>
+      </dependency>
+      <dependency>
+        <groupId>de.javakaffee</groupId>
+        <artifactId>kryo-serializers</artifactId>
+        <version>0.41</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>1.7.16</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro</artifactId>
+        <version>1.8.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-core</artifactId>
+        <version>2.17.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.logging.log4j</groupId>
+        <artifactId>log4j-api</artifactId>
+        <version>2.17.2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-lang3</artifactId>
+        <version>3.5</version>
+      </dependency>
+      <dependency>
+        <groupId>org.broadinstitute</groupId>
+        <artifactId>barclay</artifactId>
+        <version>2.1.0</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <repositories>
 		<repository>
 			<id>Cloudera</id>
 			<name>Cloudera Repository</name>
-			<!-- <url>https://repository.cloudera.com/content/repositories/releases/</url> -->
 			<url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
-
 		</repository>
 	</repositories>
 
@@ -1746,7 +1759,7 @@
         <version>3.3.0</version>
         <executions>
           <execution>
-            <id>Test</id>
+            <id>JointCallingSpark</id>
             <configuration>
               <appendAssemblyId>false</appendAssemblyId>
               <archive>
@@ -1759,7 +1772,6 @@
               <descriptorRefs>
                 <descriptorRef>jar-with-dependencies</descriptorRef>
               </descriptorRefs>
-              <!-- <finalName>java_stdin</finalName> -->
             </configuration>
             <phase>package</phase>
             <goals>
@@ -1770,4 +1782,5 @@
       </plugin>
     </plugins>
   </build>
+
 </project>
