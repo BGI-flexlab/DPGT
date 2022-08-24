@@ -155,6 +155,11 @@ public final class FeatureManager implements AutoCloseable {
         initializeFeatureSources(featureQueryLookahead, toolInstance, cloudPrefetchBuffer, cloudIndexPrefetchBuffer, reference);
     }
 
+    public FeatureManager(final String toolName) {
+        this.toolInstanceSimpleClassName = toolName;
+        this.featureSources = new LinkedHashMap<>();
+    }
+
     /**
      * Same as {@link FeatureManager#FeatureManager(CommandLineProgram, int, int, int, Path)}, except used when the
      *  FeatureInputs (and associated types) are known.
@@ -229,7 +234,7 @@ public final class FeatureManager implements AutoCloseable {
      * Note: package-visible to enable access from the core walker classes
      * (but not actual tools, so it's not protected).
      */
-    void addToFeatureSources(final int featureQueryLookahead, final FeatureInput<? extends Feature> featureInput, final Class<? extends Feature> featureType, final int cloudPrefetchBuffer, final int cloudIndexPrefetchBuffer, final Path reference) {
+    public void addToFeatureSources(final int featureQueryLookahead, final FeatureInput<? extends Feature> featureInput, final Class<? extends Feature> featureType, final int cloudPrefetchBuffer, final int cloudIndexPrefetchBuffer, final Path reference) {
         // Create a new FeatureDataSource for this file, and add it to our query pool
         featureSources.put(featureInput, new FeatureDataSource<>(featureInput, featureQueryLookahead, featureType, cloudPrefetchBuffer, cloudIndexPrefetchBuffer, reference));
     }

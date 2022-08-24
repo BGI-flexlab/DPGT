@@ -50,7 +50,9 @@ import org.broadinstitute.hellbender.utils.variant.GATKVariantContextUtils;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFHeaderLines;
 import org.broadinstitute.hellbender.engine.FeatureContext;
+import org.broadinstitute.hellbender.engine.FeatureDataSource;
 import org.broadinstitute.hellbender.engine.FeatureInput;
+import org.broadinstitute.hellbender.engine.FeatureManager;
 
 
 public class GVCFsSyncGenotyper {
@@ -58,7 +60,8 @@ public class GVCFsSyncGenotyper {
     public static final String PHASED_HOM_VAR_STRING = "1|1";
     private static final String GVCF_BLOCK = "GVCFBlock";
 
-    private FeatureContext emptyFeatureContext = new FeatureContext();
+    private FeatureManager featureManager = new FeatureManager("GVCFsSyncGenotyper");
+    private FeatureContext feature = new FeatureContext();
     private ReferenceDataSource reference;
     private MultiVariantSyncReader reader = null;
     private VariantAnnotatorEngine annotationEngine;
@@ -94,6 +97,8 @@ public class GVCFsSyncGenotyper {
         
         if (dbsnpPath != null) {
             dbsnp.dbsnp = new FeatureInput<>(dbsnpPath, "dnsnp");
+            featureManager.addToFeatureSources(FeatureDataSource.DEFAULT_QUERY_LOOKAHEAD_BASES, dbsnp.dbsnp, VariantContext.class, 0, 0, null);
+            feature = new FeatureContext(featureManager, interval);
         } else {
             dbsnp.dbsnp = null;
         }
@@ -213,7 +218,7 @@ public class GVCFsSyncGenotyper {
 
     public void apply(final Locatable loc, List<VariantContext> variants, ReferenceContext ref) {
         final VariantContext mergedVC = merger.merge(variants, loc, includeNonVariants ? ref.getBase() : null, !includeNonVariants, false);
-        final VariantContext regenotypedVC = regenotypeVC(mergedVC, ref, emptyFeatureContext, includeNonVariants);
+        final VariantContext regenotypedVC = regenotypeVC(mergedVC, ref, feature, includeNonVariants);
         if (regenotypedVC != null) {
             if (!GATKVariantContextUtils.isSpanningDeletionOnly(regenotypedVC)) {
                 vcfWriter.add(regenotypedVC);
