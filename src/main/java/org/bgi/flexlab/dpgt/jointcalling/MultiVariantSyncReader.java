@@ -38,8 +38,9 @@ public class MultiVariantSyncReader {
             vcfReaders.add(reader);
             vcfIters.add(reader.iterator());
         }
-        VCFFileReader reader = new VCFFileReader(Paths.get(vcfHeader));
-        header = reader.getHeader();
+        VCFFileReader headerReader = new VCFFileReader(Paths.get(vcfHeader));
+        header = headerReader.getHeader();
+        headerReader.close();
         vcs = new ArrayList<>(vcfpaths.size());
     }
 

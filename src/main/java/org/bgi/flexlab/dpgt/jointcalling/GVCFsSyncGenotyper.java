@@ -15,7 +15,7 @@ import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.google.common.annotations.VisibleForTesting;
-import org.broadinstitute.hellbender.engine.ReferenceDataSource;
+import org.broadinstitute.hellbender.engine.ReferenceFileSource;
 import org.broadinstitute.hellbender.tools.walkers.ReferenceConfidenceVariantContextMerger;
 import org.broadinstitute.hellbender.tools.walkers.annotator.*;
 import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.*;
@@ -62,7 +62,7 @@ public class GVCFsSyncGenotyper {
 
     private FeatureManager featureManager = new FeatureManager("GVCFsSyncGenotyper");
     private FeatureContext feature = new FeatureContext();
-    private ReferenceDataSource reference;
+    private ReferenceFileSource reference = null;
     private MultiVariantSyncReader reader = null;
     private VariantAnnotatorEngine annotationEngine;
     private GenotypingEngine<?> genotypingEngine;
@@ -84,7 +84,7 @@ public class GVCFsSyncGenotyper {
         final SimpleInterval interval, final String outpath, final String dbsnpPath, final GenotypeCalculationArgumentCollection genotypeArgs) {
         
         // init reference
-        reference = ReferenceDataSource.of(Paths.get(refpath));
+        reference = new ReferenceFileSource(Paths.get(refpath));
         reader = new MultiVariantSyncReader();
         reader.open(vcfpaths, vcfHeader);
         reader.query(interval);
@@ -205,14 +205,17 @@ public class GVCFsSyncGenotyper {
                 apply(variantInterval, variantContexts, new ReferenceContext(reference, variantInterval));
             }
         }
-        if (vcfWriter != null) {
-            vcfWriter.close();
-        }
     }
 
     public void stop() {
+        if (vcfWriter != null) {
+            vcfWriter.close();
+        }
         if (reader != null) {
             reader.close();
+        }
+        if (reference != null) {
+            reference.close();
         }
     }
 
