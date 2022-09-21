@@ -217,6 +217,7 @@ public class GVCFsSyncGenotyper {
         if (reference != null) {
             reference.close();
         }
+        featureManager.close();
     }
 
     public void apply(final Locatable loc, List<VariantContext> variants, ReferenceContext ref) {

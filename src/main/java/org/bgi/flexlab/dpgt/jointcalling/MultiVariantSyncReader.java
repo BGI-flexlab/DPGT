@@ -49,7 +49,8 @@ public class MultiVariantSyncReader {
             for (CloseableIterator<VariantContext> iter: vcfIters) {
                 iter.close();
             }
-        } else if (vcfReaders != null) {
+        }
+        if (vcfReaders != null) {
             for (VCFFileReader reader: vcfReaders) {
                 reader.close();
             }
