@@ -38,6 +38,7 @@ public class VariantFinderJob extends DPGTJob<BitSet> {
         final String variantSitePrefix = variantSiteDir.getAbsolutePath()+"/"+JointCallingSparkConsts.VARIANT_SITE_PREFIX;
         List<String> variantSiteFiles = vcfpathsRDDPartitionByJobs
             .mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(variantSitePrefix, interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false)
+            .filter(x -> {return !x.equals("null");})
             .collect();
         
         JavaRDD<String> variantSiteFilesRDD = sc.parallelize(variantSiteFiles, 1);

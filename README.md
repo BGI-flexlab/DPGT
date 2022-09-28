@@ -4,12 +4,35 @@ DPGT is a distributed population genetics analysis tool which enabled joint call
 
 ## Getting started
 
+### Build
+
+Get DGPT from github.
+```sh
+git clone git@github.com:BGI-flexlab/DPGT.git
+# switch to the tag we need
+git checkout v1.1.4.0
+```
+
+DPGT is implemented using C++ and java, first we need to compile C++ libraries using following commands.
+```sh
+# in DPGT root directory
+mkdir build
+cd build && cmake -DCMAKE_PREFIX_PATH=/path/to/boost -DJAVA_INCLUDE_PATH=/path/to/jdk/include ../src/main/native/
+```
+the compiled C++ libraries will be placed in `build/lib` directory.
+
+Compile DPGT jar package using maven.
+```sh
+# in DPGT root directory
+mvn package
+```
+the jar package will be placed in `target` directory.
 
 ### Usage
 
 ```
 DPGT: Distributed Population Genetics analysis Tools
-Version: 1.1.0.0
+Version: 1.1.4.0
 
 Options:
  -i,--input <FILE>                        input gvcf list in a file.

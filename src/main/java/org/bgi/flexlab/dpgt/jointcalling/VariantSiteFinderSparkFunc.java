@@ -33,6 +33,12 @@ public class VariantSiteFinderSparkFunc implements Function2<Integer, Iterator<S
         while(vcfpathIter.hasNext()) {
             vcfpaths.add(vcfpathIter.next());
         }
+        if (vcfpaths.isEmpty()) {
+            // no vcf in this part, return a null output path
+            ArrayList<String> result = new ArrayList<>();
+            result.add("null");
+            return result.iterator();
+        }
         String[] vcfpathsArray  = new String[vcfpaths.size()];
         vcfpaths.toArray(vcfpathsArray);
         String outpath = prefix + idx + JointCallingSparkConsts.VARIANT_SITE_SUFFIX;
