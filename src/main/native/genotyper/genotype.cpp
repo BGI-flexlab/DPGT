@@ -32,7 +32,13 @@ GenotypeType Genotype::determineType(
     Allele first_call_allele;
     int first_call_allele_index = -1;
 
+    int allele_index = 0;
     for (int i = 0; i < gt->size(); ++i) {
+        allele_index = (*gt)[i];
+        if (allele_index < 0) {
+            saw_no_call = true;
+            continue;
+        }
         const Allele &allele = var_alleles[(*gt)[i]];
         if (allele.isNoCall()) {
             saw_no_call = true;
