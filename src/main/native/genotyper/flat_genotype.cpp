@@ -45,6 +45,7 @@ void FlatGenotype::getString(const std::set<int> &format_key_indices,
                 VCFConstants::MISSING_VALUE_v4.c_str(),
                 ":", n_miss);
             n_miss = 0;
+            kputc(':', s);
         }
         a->getValueStr(s);
     } else {
