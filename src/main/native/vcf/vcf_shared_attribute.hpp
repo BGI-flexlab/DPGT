@@ -458,7 +458,7 @@ VcfAttributeBase * VcfSharedAttribute<T>::merge(
         }
     }
 
-    T *new_value = (T *)malloc(size*sizeof(T));
+    T *new_value = (T *)calloc(size, sizeof(T));
 
     for (auto &itr: cast_attributes) {
         if (itr == nullptr) continue;

@@ -51,6 +51,7 @@ public class GVCFsSyncGenotyperJob extends DPGTJob<List<String>> {
     public GVCFsSyncGenotyperJob(final JointCallingSparkOptions jcOptions, final int idx) {
         this.jcOptions = jcOptions;
         this.idx = idx;
+        this.genotypeDir = new File(jcOptions.output+"/"+JointCallingSparkConsts.GENOTYPE_GVCFS_PREFIX+this.idx);
         this.stateFile = this.jcOptions.output + "/" + JointCallingSparkConsts.JOB_STATE + "/" + JointCallingSparkConsts.GENOTYPE_GVCFS_PREFIX + this.idx + ".json";
     }
 

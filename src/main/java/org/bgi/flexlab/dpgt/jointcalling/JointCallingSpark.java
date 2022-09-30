@@ -73,6 +73,7 @@ public class JointCallingSpark {
             if (genotyperJob0.isSuccess()) {
                 logger.info("Genotype gvcfs was success for interval: {} ({})", interval.toString(), cycleStr);
                 allGenotypeGVCFsList.addAll(genotyperJob0.load());
+                allGenotypeDirs.add(genotyperJob0.genotypeDir);
                 continue;
             }
 
