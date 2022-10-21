@@ -12,10 +12,12 @@
 int main(int argc, char **argv) {
     VcfReader reader(argv[1], true);
 
+    // reader.Querys("chr20", 10436226, 10436247);
+
     VcfIBuffer buffer(&reader);
 
     std::vector<SimpleInterval> intervals{SimpleInterval(19, 10436226, 10436247)};
-    reader.QueryIntervals(intervals);
+    buffer.QueryIntervals(intervals);
 
     bcf1_t *record;
     kstring_t line = {0, 0, NULL};

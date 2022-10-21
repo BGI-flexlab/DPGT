@@ -66,7 +66,11 @@ void VcfIBuffer::ReinitializeBuffer() {
     cur_ = 0;
     for (int i = 0; i < 2; ++i) {
         for (int j = 0; j < kMaxSize; ++j) {
-            bcf_clear(dual_buffer_[i][j]);
+            if (dual_buffer_[i][j] != NULL) {
+                bcf_clear(dual_buffer_[i][j]);
+            } else {
+                dual_buffer_[i][j] = bcf_init1();
+            }
         }
     }
     buffer_ = dual_buffer_[0];
