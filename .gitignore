@@ -3,5 +3,6 @@
 src/main/native/build
 src/main/native/.cache
 test
+!src/main/native/test
 compile_commands.json
 target
