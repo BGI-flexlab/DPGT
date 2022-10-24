@@ -234,3 +234,19 @@ target_link_libraries(cdpgt
 #     ${Boost_LIBRARIES}
 #     z m bz2 lzma pthread curl ssl crypto)
 
+
+# add_executable(test_vcf_writer
+#     common/fastx_seq.cpp
+#     common/fastx_suffix.cpp
+#     common/sequence_dictionary.cpp
+#     common/simple_interval.cpp
+#     test/test_vcf_writer.cpp
+#     vcf/vcf_writer.cpp
+#     vcf/vcf_reader.cpp)
+
+# target_link_libraries(test_vcf_writer
+#     ${HTSLIB_LIB}
+#     ${LIBDEFLATE_LIB}
+#     ${Boost_LIBRARIES}
+#     z m bz2 lzma pthread curl ssl crypto)
+
