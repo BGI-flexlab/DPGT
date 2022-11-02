@@ -6,14 +6,15 @@ import java.util.List;
 import java.util.BitSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.bgi.flexlab.dpgt.utils.DPGTJob;
+import org.bgi.flexlab.dpgt.utils.DPGTJobAsync;
+import org.bgi.flexlab.dpgt.utils.DPGTJobState;
 import org.bgi.flexlab.dpgt.utils.SimpleIntervalUtils;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.JavaFutureAction;
 
-public class GVCFsSyncGenotyperJob extends DPGTJob<List<String>> {
+public class GVCFsSyncGenotyperJob extends DPGTJobAsync<List<String>, List<String>> {
     private static final Logger logger = LoggerFactory.getLogger(GVCFsSyncGenotyperJob.class);
     private JointCallingSparkOptions jcOptions;
     private JavaSparkContext sc;
@@ -55,11 +56,14 @@ public class GVCFsSyncGenotyperJob extends DPGTJob<List<String>> {
         this.stateFile = this.jcOptions.output + "/" + JointCallingSparkConsts.JOB_STATE + "/" + JointCallingSparkConsts.GENOTYPE_GVCFS_PREFIX + this.idx + ".json";
     }
 
-    public List<String> work() {
+    public void submit() {
+        if (isSuccess()) {
+            return;
+        }
         final String genotypePrefix = genotypeDir.getAbsolutePath()+"/"+JointCallingSparkConsts.GENOTYPE_GVCFS_PREFIX;
         // genotype partitions for each sub-interval, total partitions is about jcOptions.jobs*PARTITION_COEFFICIENT
         final int genotypePartitions = (int)Math.ceil(1.0*jcOptions.jobs*partitionCoeff/subIntervals.size());
-        ArrayList<JavaFutureAction<List<String>>> genotypeGVCFsFutures = new ArrayList<>();
+        this.futures = new ArrayList<>();
         for (int j = 0; j < subIntervals.size(); ++j) {
             ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(
                 subIntervals.get(j), genotypePartitions, subVariantBitSets.get(j));
@@ -69,13 +73,24 @@ public class GVCFsSyncGenotyperJob extends DPGTJob<List<String>> {
                     genotypeHeader, genotypePrefix+j+"-", jcOptions.dbsnp, jcOptions.genotypeArguments), false)
                 .filter(x -> {return !x.equals("null");})
                 .collectAsync();
-            genotypeGVCFsFutures.add(genotypeGVCFsFuture);
+            this.futures.add(genotypeGVCFsFuture);
+        }
+    }
+
+    public List<String> get() {
+        if (isSuccess()) {
+            return load();
+        }
+
+        if (this.futures == null) {
+            logger.error("Should run submit before get!");
+            System.exit(1);
         }
         
         ArrayList<String> genotypeGVCFsList = new ArrayList<>();
-        for (int j = 0; j < genotypeGVCFsFutures.size(); ++j) {
+        for (int j = 0; j < this.futures.size(); ++j) {
             try {
-                genotypeGVCFsList.addAll(genotypeGVCFsFutures.get(j).get());
+                genotypeGVCFsList.addAll(this.futures.get(j).get());
             } catch (Exception e) {
                 logger.error("Failed to get genotyped gvcfs for interval: {}, {}", subIntervals.get(j), e.getMessage());
                 System.exit(1);
@@ -83,6 +98,7 @@ public class GVCFsSyncGenotyperJob extends DPGTJob<List<String>> {
         }
 
         this.jobState.outPutFiles.put(0, genotypeGVCFsList);
+        this.jobState.jobState = DPGTJobState.State.SUCCESS;
 
         return genotypeGVCFsList;
     }

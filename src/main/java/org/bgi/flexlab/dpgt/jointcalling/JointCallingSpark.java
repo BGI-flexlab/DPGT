@@ -37,14 +37,11 @@ public class JointCallingSpark {
         JointCallingSparkOptions jcOptions = new JointCallingSparkOptions();
         jcOptions.parse(args);
 
-        ConcatGenotypeGVCFsJob concatGVCFsJob0 = new ConcatGenotypeGVCFsJob(jcOptions);
-        if (concatGVCFsJob0.isSuccess()) {
-            logger.info("Joint Calling result {} is exists and previous job state was success. Please specify a new output directory or remove {}",
-                jcOptions.getOutputVCFPath(), jcOptions.getOutputVCFPath());
-            System.exit(0);
-        }
-
         List<SimpleInterval> intervalsToTravers = jcOptions.getIntervalsToTravers();
+        if (intervalsToTravers.size() < 1) {
+            logger.error("Can not get intervals to travers!");
+            System.exit(1);
+        } 
 
         SparkConf conf = new SparkConf().setAppName("JointCallingSpark");
         if (jcOptions.uselocalMaster) conf.setMaster("local["+jcOptions.jobs+"]");
@@ -59,24 +56,39 @@ public class JointCallingSpark {
 
         JavaRDD<String> vcfpathsRDDPartitionByJobs = sc.textFile(addFilePrefixIfNeed(jcOptions.input), PARTITION_COEFFICIENT * jcOptions.jobs);
 
-        ArrayList<File> allGenotypeDirs = new ArrayList<>();
-        ArrayList<String> allGenotypeGVCFsList = new ArrayList<>();
-
+        int s = 0; // first interval that have not beed traversed
+        int n = 0;
         for (int i = 0; i < intervalsToTravers.size(); ++i) {
+            logger.info("Finding first interval to traverse ...");
+            SimpleInterval interval = intervalsToTravers.get(i);
+            final String cycleStr = String.format("%d/%d", i+1, intervalsToTravers.size());
+            ConcatGenotypeGVCFsJob concatVcfJob0 = new ConcatGenotypeGVCFsJob(jcOptions, i);
+            if (concatVcfJob0.isSuccess()) {
+                ++n;
+                logger.info("Genotype gvcfs was success for interval: {} ({})", interval.toString(), cycleStr);
+            } else {
+                s = i;
+                logger.info("Start from interval: {} ({})", interval.toString(), cycleStr);
+                break;
+            }
+        }
+
+        if (n == intervalsToTravers.size()) {
+            logger.info("Joint Calling result {} is exists and previous job state was success. Please specify a new output directory or remove {}",
+                jcOptions.getOutputVCFPath(), jcOptions.getOutputVCFPath());
+            System.exit(1);
+        }
+
+        ArrayList<File> allCombineDirs = new ArrayList<>();
+        ArrayList<GVCFsSyncGenotyperJob> allGenotyperJobs = new ArrayList<>();
+        ArrayList<File> allGenotypeDirs = new ArrayList<>();
+        ConcatGenotypeGVCFsJob pre2ConcatVCFJob = null;
+
+        for (int i = s; i < intervalsToTravers.size(); ++i) {
             SimpleInterval interval = intervalsToTravers.get(i);
             final String cycleStr = String.format("%d/%d", i+1, intervalsToTravers.size());
             logger.info("Cycle {}", cycleStr);
             logger.info("Processing interval: {} ({})", interval.toString(), cycleStr);
-            // used for check if genotyping job is done for i-th iteration, if it is done we simply goto next iteration without
-            // run or check variant finding job and combining gvcfs job
-            GVCFsSyncGenotyperJob genotyperJob0 = new GVCFsSyncGenotyperJob(jcOptions, i);
-            if (genotyperJob0.isSuccess()) {
-                logger.info("Genotype gvcfs was success for interval: {} ({})", interval.toString(), cycleStr);
-                allGenotypeGVCFsList.addAll(genotyperJob0.load());
-                allGenotypeDirs.add(genotyperJob0.genotypeDir);
-                continue;
-            }
-
             logger.info("Finding variant sites in {} ({})", interval.toString(), cycleStr);
             VariantFinderJob variantFinderJob = new VariantFinderJob(vcfpathsRDDPartitionByJobs, jcOptions, sc, i, interval);
             BitSet variantSiteSetData = variantFinderJob.run();
@@ -90,30 +102,70 @@ public class JointCallingSpark {
             CombineGVCFsOnSiteJob combineGVCFsOnSiteJob = new CombineGVCFsOnSiteJob(
                 vcfpathsRDDPartitionByCombineParts, jcOptions, sc, i, interval, PARTITION_COEFFICIENT, variantSiteSetData);
             combineGVCFsOnSiteJob.run();
+            allCombineDirs.add(combineGVCFsOnSiteJob.combineDir);
+
+            if (jcOptions.deleteIntermediateResults) {
+                FileUtils.deleteDirectory(variantFinderJob.variantSiteDir);
+            }
 
             logger.info("Genotyping gvcfs in {} ({})", interval.toString(), cycleStr);
             GVCFsSyncGenotyperJob genotyperJob = new GVCFsSyncGenotyperJob(jcOptions, sc, i,
                 combineGVCFsOnSiteJob.subIntervals, combineGVCFsOnSiteJob.subVariantBitSets, combineGVCFsOnSiteJob.combinedGVCFsList,
                 PARTITION_COEFFICIENT, genotypeHeader);
-            List<String> genotypeGVCFsList = genotyperJob.run();
-            allGenotypeGVCFsList.addAll(genotypeGVCFsList);
+            genotyperJob.submit();
+            allGenotyperJobs.add(genotyperJob);
             allGenotypeDirs.add(genotyperJob.genotypeDir);
 
-            if (jcOptions.deleteIntermediateResults) {
-                FileUtils.deleteDirectory(variantFinderJob.variantSiteDir);
-                FileUtils.deleteDirectory(combineGVCFsOnSiteJob.combineDir);
+            if (i != s) {
+                int j = i - s - 1;  // j >= 0
+                GVCFsSyncGenotyperJob preGenotyperJob = allGenotyperJobs.get(j);
+                List<String> preGenotypedVcfList = preGenotyperJob.get();  // -1 job
+                ConcatGenotypeGVCFsJob preConcatVCFJob = null;
+                if (j == 0) {
+                    preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, genotypeHeader, jcOptions.getOutputVCFPath(), j);
+                } else {
+                    preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, null, jcOptions.getOutputVCFPath(), j);
+                }
+                if (pre2ConcatVCFJob != null) pre2ConcatVCFJob.get();  // -2 job
+                preConcatVCFJob.submit();
+                pre2ConcatVCFJob = preConcatVCFJob;
+
+                // deleter intermediate results
+                if (jcOptions.deleteIntermediateResults) {
+                    FileUtils.deleteDirectory(allCombineDirs.get(j));  // delete -1 combine dir
+                    if (j - 1 > -1) {
+                        FileUtils.deleteDirectory(allGenotypeDirs.get(j-1));  // delete -2 genotype dir
+                    }
+                }
             }
         }
 
-        logger.info("Concatenating genotyped vcfs to result");
-        ConcatGenotypeGVCFsJob concatGVCFsJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, allGenotypeGVCFsList, genotypeHeader, jcOptions.getOutputVCFPath());
-        concatGVCFsJob.run();
+        {
+            int j = intervalsToTravers.size() - s - 1;
+            GVCFsSyncGenotyperJob preGenotyperJob = allGenotyperJobs.get(j);
+            List<String> preGenotypedVcfList = preGenotyperJob.get();  // -1 job
+            ConcatGenotypeGVCFsJob preConcatVCFJob = null;
+            if (j == 0) {
+                preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, genotypeHeader, jcOptions.getOutputVCFPath(), j);
+            } else {
+                preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, null, jcOptions.getOutputVCFPath(), j);
+            }
+            if (pre2ConcatVCFJob != null) pre2ConcatVCFJob.get();  // -2 job
+            preConcatVCFJob.submit();
+            preConcatVCFJob.get();
+
+            // deleter intermediate results
+            if (jcOptions.deleteIntermediateResults) {
+                FileUtils.deleteDirectory(allCombineDirs.get(j));  // delete -1 combine dir
+                if (j - 1 > -1) {
+                    FileUtils.deleteDirectory(allGenotypeDirs.get(j-1));  // delete -2 genotype dir
+                }
+                FileUtils.deleteDirectory(allGenotypeDirs.get(j));   // delete -1 genotype dir
+            }
+        }
 
         if (jcOptions.deleteIntermediateResults) {
             FileUtils.deleteDirectory(combineVCFHeaderJob.headerDir);
-            for (final File d: allGenotypeDirs) {
-                FileUtils.deleteDirectory(d);
-            }
         }
 
         sc.close();

@@ -9,8 +9,10 @@ import com.alibaba.fastjson.annotation.JSONField;
 
 public class DPGTJobState {
 
-    enum State {
-        NOT_RUN, SUCCESS, FAIL;
+    public enum State {
+        NOT_RUN,
+        SUCCESS,
+        FAIL;
     }
 
     @JSONField(name = "job_state")

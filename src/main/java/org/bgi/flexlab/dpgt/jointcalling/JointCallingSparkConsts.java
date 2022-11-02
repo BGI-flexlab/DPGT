@@ -13,5 +13,6 @@ public class JointCallingSparkConsts {
     public static final String OUTPUT_NAME = "result.vcf.gz";               // outdir/result.vcf.gz
     public static final String JOB_STATE = "job_state";                     // outdir/job_state
     public static final String COMBINE_HEADER_STATE_FILE = "combine_vcf_header.json";      // outdir/job_state/combine_vcf_header.json
-    public static final String CONCAT_GENOTYPE_GVCFS = "concat_genotype_gvcfs.json";       // outdir/job_state/concat_genotype_gvcfs.json
+    public static final String CONCAT_GENOTYPE_STATE_FILE_PREFIX = "concat_genotype_gvcfs";       // outdir/job_state/concat_genotype_gvcfs.json
+    public static final String JOB_SUCCESS_FLAG = "SUCCESS";
 }
