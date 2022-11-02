@@ -32,25 +32,27 @@ public abstract class DPGTJobBase<R> implements Serializable {
         }
     }
 
-    public void readStateFile() {
+    public static DPGTJobState readStateFile(String inputStateFile) {
+        DPGTJobState s = null;
         try {
-            BufferedReader reader = new BufferedReader(new FileReader(stateFile));
+            BufferedReader reader = new BufferedReader(new FileReader(inputStateFile));
             StringBuilder strBuilder = new StringBuilder();
             String line = null;
             while ((line = reader.readLine()) != null) {
                 strBuilder.append(line);
             }
-            jobState = JSON.parseObject(strBuilder.toString(), DPGTJobState.class);
+            s = JSON.parseObject(strBuilder.toString(), DPGTJobState.class);
             reader.close();
         } catch (IOException e) {
-            jobState = new DPGTJobState();  // construct a default job state object, state is not run
+            s = new DPGTJobState();  // construct a default job state object, state is not run
         }
+        return s;
     }
 
     public abstract R load();
 
     public boolean isSuccess() {
-        readStateFile();
+        this.jobState = readStateFile(this.stateFile);
         if (this.jobState.isSuccess()) {
             return true;
         } else {

@@ -121,10 +121,10 @@ public class JointCallingSpark {
                 GVCFsSyncGenotyperJob preGenotyperJob = allGenotyperJobs.get(j);
                 List<String> preGenotypedVcfList = preGenotyperJob.get();  // -1 job
                 ConcatGenotypeGVCFsJob preConcatVCFJob = null;
-                if (j == 0) {
-                    preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, genotypeHeader, jcOptions.getOutputVCFPath(), j);
+                if (i == 1) {
+                    preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, genotypeHeader, 0);
                 } else {
-                    preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, null, jcOptions.getOutputVCFPath(), j);
+                    preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, null, i - 1);
                 }
                 if (pre2ConcatVCFJob != null) pre2ConcatVCFJob.get();  // -2 job
                 preConcatVCFJob.submit();
@@ -145,10 +145,10 @@ public class JointCallingSpark {
             GVCFsSyncGenotyperJob preGenotyperJob = allGenotyperJobs.get(j);
             List<String> preGenotypedVcfList = preGenotyperJob.get();  // -1 job
             ConcatGenotypeGVCFsJob preConcatVCFJob = null;
-            if (j == 0) {
-                preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, genotypeHeader, jcOptions.getOutputVCFPath(), j);
+            if (intervalsToTravers.size() == 1) {
+                preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, genotypeHeader, 0);
             } else {
-                preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, null, jcOptions.getOutputVCFPath(), j);
+                preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, null, intervalsToTravers.size() - 1);
             }
             if (pre2ConcatVCFJob != null) pre2ConcatVCFJob.get();  // -2 job
             preConcatVCFJob.submit();

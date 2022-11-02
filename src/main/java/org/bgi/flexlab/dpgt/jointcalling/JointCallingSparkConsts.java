@@ -15,4 +15,5 @@ public class JointCallingSparkConsts {
     public static final String COMBINE_HEADER_STATE_FILE = "combine_vcf_header.json";      // outdir/job_state/combine_vcf_header.json
     public static final String CONCAT_GENOTYPE_STATE_FILE_PREFIX = "concat_genotype_gvcfs";       // outdir/job_state/concat_genotype_gvcfs.json
     public static final String JOB_SUCCESS_FLAG = "SUCCESS";
+    public static final String RESULT_VCF_FILE_SIZE_KEY = "result_vcf_file_size";   // vcf file size after one concat vcf job done
 }

@@ -23,26 +23,22 @@ public class ConcatGenotypeGVCFsJob extends DPGTJobAsync<List<String>, Integer> 
     private String outputPath;
     private int idx;
     public ConcatGenotypeGVCFsJob(final JointCallingSparkOptions jcOptions, final JavaSparkContext sc,
-        final List<String> genotypeGVCFsList, final String genotypeHeader, final String outputPath, int idx)
+        final List<String> genotypeGVCFsList, final String genotypeHeader, int idx)
     {
         this.jcOptions = jcOptions;
         this.sc = sc;
         this.genotypeGVCFsList = genotypeGVCFsList;
         this.genotypeHeader = genotypeHeader;
-        File outputFile = new File(outputPath);
+        File outputFile = new File(this.jcOptions.getOutputVCFPath());
         this.outputPath = outputFile.getAbsolutePath();
         this.idx = idx;
-        this.stateFile = String.format("%s/%s/%s-%d.json",
-            this.jcOptions.output, JointCallingSparkConsts.JOB_STATE,
-            JointCallingSparkConsts.CONCAT_GENOTYPE_STATE_FILE_PREFIX, this.idx);
+        this.stateFile = getStateFilePath();
     }
 
     public ConcatGenotypeGVCFsJob(final JointCallingSparkOptions jcOptions, int idx) {
         this.jcOptions = jcOptions;
         this.idx = idx;
-        this.stateFile = String.format("%s/%s/%s-%d.json",
-            this.jcOptions.output, JointCallingSparkConsts.JOB_STATE,
-            JointCallingSparkConsts.CONCAT_GENOTYPE_STATE_FILE_PREFIX, this.idx);
+        this.stateFile = getStateFilePath();
     }
 
     public void submit() {
@@ -51,7 +47,7 @@ public class ConcatGenotypeGVCFsJob extends DPGTJobAsync<List<String>, Integer> 
         }
         JavaRDD<String> concateGVCFsRDD = sc.parallelize(genotypeGVCFsList, 1);
         JavaFutureAction<List<String>> futureAction = concateGVCFsRDD.mapPartitionsWithIndex(
-            new ConcatGenotypeGVCFsSparkFunc(genotypeHeader, outputPath), false).collectAsync();
+            new ConcatGenotypeGVCFsSparkFunc(genotypeHeader, outputPath, getOutputFileSizeBefore()), false).collectAsync();
         this.futures = new ArrayList<>();
         this.futures.add(futureAction);
     }
@@ -88,14 +84,54 @@ public class ConcatGenotypeGVCFsJob extends DPGTJobAsync<List<String>, Integer> 
         ArrayList<String> outPutFiles = new ArrayList<>();
         outPutFiles.add(outputPath);
         outPutFiles.add(jobSuccessFlag.getAbsolutePath());
-
         this.jobState.outPutFiles.put(0, outPutFiles);
+
+        File outputFile = new File(outputPath);
+        this.jobState.metaData.put(JointCallingSparkConsts.RESULT_VCF_FILE_SIZE_KEY, String.valueOf(outputFile.length()));
+
         this.jobState.jobState = DPGTJobState.State.SUCCESS;
 
+        writeStateFile();
         return 0;
     }
 
     public Integer load() {
         return 0;
+    }
+
+    /**
+     * get output result vcf file size before this job
+     * @return
+     */
+    private long getOutputFileSizeBefore() {
+        if (this.idx == 0) {
+            return 0;
+        } else {
+            String preStateFile = String.format("%s/%s/%s.%d.json",
+                this.jcOptions.output, JointCallingSparkConsts.JOB_STATE,
+                JointCallingSparkConsts.CONCAT_GENOTYPE_STATE_FILE_PREFIX, this.idx-1);
+            DPGTJobState preJobState = readStateFile(preStateFile);
+            String fileSizeStr = preJobState.metaData.get(JointCallingSparkConsts.RESULT_VCF_FILE_SIZE_KEY);
+            if (fileSizeStr == null) {
+                logger.error("key {} not in state file {} metadata", JointCallingSparkConsts.RESULT_VCF_FILE_SIZE_KEY, preStateFile);
+                System.exit(1);
+            }
+            long fileSize = 0;
+            try {
+                fileSize = Long.parseLong(fileSizeStr);
+                return fileSize;
+            } catch (NumberFormatException e) {
+                logger.error("{} state file metadata key {} not have a string value that can be convert to long",
+                    JointCallingSparkConsts.RESULT_VCF_FILE_SIZE_KEY, preStateFile);
+                System.exit(1);
+            }
+            return fileSize;
+        }
+    }
+
+    private String getStateFilePath() {
+        return String.format("%s/%s/%s.%d.json",
+            this.jcOptions.output, JointCallingSparkConsts.JOB_STATE,
+            JointCallingSparkConsts.CONCAT_GENOTYPE_STATE_FILE_PREFIX, this.idx);
     }
 }

@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.nio.channels.FileChannel;
 import java.util.Iterator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,9 +18,11 @@ public class ConcatGenotypeGVCFsSparkFunc implements Function2<Integer, Iterator
     private static final Logger logger = LoggerFactory.getLogger(ConcatGenotypeGVCFsSparkFunc.class);
     public String headerPath;
     public String output;
-    public ConcatGenotypeGVCFsSparkFunc(final String headerPath, final String output) {
+    public long offset;
+    public ConcatGenotypeGVCFsSparkFunc(final String headerPath, final String output, long offset) {
         this.headerPath = headerPath;
         this.output = output;
+        this.offset = offset;
     }
 
     @Override public Iterator<String> call(Integer idx, Iterator<String> vcfpathIter) {
@@ -29,7 +32,10 @@ public class ConcatGenotypeGVCFsSparkFunc implements Function2<Integer, Iterator
         }
         BufferedOutputStream bufferedOutputStream = null;
         try {
-            bufferedOutputStream = new BufferedOutputStream(new FileOutputStream(outputFile, true));
+            FileOutputStream outputStream = new FileOutputStream(outputFile, true);
+            FileChannel outputChannel = outputStream.getChannel();
+            outputChannel.truncate(offset);
+            bufferedOutputStream = new BufferedOutputStream(outputStream);
         } catch (IOException e) {
             logger.error("{}", output, e.getMessage());
             System.exit(1);

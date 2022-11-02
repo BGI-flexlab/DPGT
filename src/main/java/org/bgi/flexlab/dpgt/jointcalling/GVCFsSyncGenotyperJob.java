@@ -100,6 +100,8 @@ public class GVCFsSyncGenotyperJob extends DPGTJobAsync<List<String>, List<Strin
         this.jobState.outPutFiles.put(0, genotypeGVCFsList);
         this.jobState.jobState = DPGTJobState.State.SUCCESS;
 
+        writeStateFile();
+        
         return genotypeGVCFsList;
     }
 

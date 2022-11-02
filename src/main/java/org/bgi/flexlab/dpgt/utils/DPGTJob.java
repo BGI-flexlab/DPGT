@@ -14,7 +14,7 @@ public abstract class DPGTJob<R> extends DPGTJobBase<R> {
     public abstract R work();
 
     public R run() {
-        readStateFile();
+        jobState = readStateFile(stateFile);
         R result = null;
         if (!jobState.isSuccess()) {
             // job is not success, work on it

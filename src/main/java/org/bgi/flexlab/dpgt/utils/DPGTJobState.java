@@ -1,7 +1,6 @@
 package org.bgi.flexlab.dpgt.utils;
 
 import java.util.List;
-import java.util.ArrayList;
 import java.io.File;
 import java.util.TreeMap;
 import com.alibaba.fastjson.annotation.JSONField;
@@ -20,6 +19,9 @@ public class DPGTJobState {
 
     @JSONField(name = "output")
     public TreeMap<Integer, List<String>> outPutFiles = new TreeMap<>();
+
+    @JSONField(name = "metadata")
+    public TreeMap<String, String> metaData = new TreeMap<>();
 
     /**
      * if
