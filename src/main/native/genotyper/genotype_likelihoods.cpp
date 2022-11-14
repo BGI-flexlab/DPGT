@@ -124,7 +124,7 @@ GenotypeLikelihoods GenotypeLikelihoods::fromPLs(const EigenArrayXi &PLs)
 {
     EigenArrayXd log10_likelihoods(PLs.size());
     for (int i = 0; i < log10_likelihoods.size(); ++i) {
-        log10_likelihoods[i] = 0.1 * PLs[i];
+        log10_likelihoods[i] = -0.1 * PLs[i];
     }
     return GenotypeLikelihoods(log10_likelihoods);
 }

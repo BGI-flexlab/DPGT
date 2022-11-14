@@ -72,7 +72,7 @@ public:
 
 
 struct VariantStringWithPos {
-    std::string var_str;
+    kstring_t *var_ks;
     int32_t rid;
     int64_t start;
     int64_t end;

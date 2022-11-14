@@ -101,7 +101,7 @@ const std::vector<Allele> &VariantContext::getAlleles() {
 const std::vector<FlatGenotype *> &VariantContext::getFlatGenotypes()
 {   
     if (!flat_genotypes_.empty()) return flat_genotypes_;
-    if (gt_ == nullptr && genotype_attributes_.empty()) {
+    if (gts_.empty() && genotype_attributes_.empty()) {
         createGenotypeAttributes();
     }
 
@@ -110,7 +110,7 @@ const std::vector<FlatGenotype *> &VariantContext::getFlatGenotypes()
     // loop through each sample
     for (size_t i = 0; i < genotype_attributes_.size(); ++i) {
         flat_genotypes_[i] = new FlatGenotype(
-            id_tables_->sample_id_table.table[i], gt_, genotype_attributes_[i],
+            id_tables_->sample_id_table.table[i], gts_[i], genotype_attributes_[i],
             dynamic_cast<VcfFormatKeyMap *>(id_tables_->format_id_table.key_map));
     }
 
@@ -144,6 +144,7 @@ int64_t VariantContext::calculateEnd() const {
 }
 
 std::vector<Allele> VariantContext::createAlleles() const {
+    if (!(variant_->unpacked&BCF_UN_STR)) bcf_unpack(variant_, BCF_UN_STR);
     std::vector<Allele> alleles(getNAllele());
     if (getNAllele() > 0) {
         alleles[0] = Allele::create(variant_->d.allele[0], true);
@@ -159,7 +160,9 @@ void VariantContext::createGenotypeAttributes()
 {
     if (!(variant_->unpacked&BCF_UN_FMT)) bcf_unpack(variant_, BCF_UN_FMT);
     const int nsamples = bcf_hdr_nsamples(header_);
-    
+
+    // init GTs
+    gts_ = std::vector<VcfAttributeGT *>(getNSamples(), nullptr);    
     genotype_attributes_ = initGenotyeAttributeArrayForSamples();
 
     // loop through all genotype fields
@@ -184,6 +187,9 @@ void VariantContext::createGenotypeAttributes()
                     n /= nsamples;
                     for (int j = 0; j < nsamples; ++j) {
                         int32_t *ptr = dst + j*n;
+                        if (strcmp(key, "GT") != 0 && *ptr == bcf_int32_missing) {
+                            continue;  // skip missing value
+                        }
                         int k;
                         for (k = 0; k < n; ++k) {
                             if (ptr[k] == bcf_int32_vector_end) break;
@@ -196,7 +202,7 @@ void VariantContext::createGenotypeAttributes()
                         if (strcmp(key, "GT") == 0) {
                             // GT coded phase into int32_t, so decoded it 
                             // here
-                            gt_ = new VcfAttributeGT(
+                            gts_[j] = new VcfAttributeGT(
                                 key, BCF_HT_INT, k, l, tmp);
                         } else {
                             genotype_attributes_[j][new_id] =
@@ -219,6 +225,9 @@ void VariantContext::createGenotypeAttributes()
                     n /= nsamples;
                     for (int j = 0; j < nsamples; ++j) {
                         float *ptr = dst + j*n;
+                        if (*ptr == bcf_float_missing) {
+                            continue;  // skip missing value
+                        }
                         int k;
                         for (k = 0; k < n; ++k) {
                             if (ptr[k] == bcf_float_vector_end) break;
@@ -365,7 +374,12 @@ void VariantContext::clear() {
         for (auto g: flat_genotypes_) delete g;
         flat_genotypes_.clear();
     }
-    if (gt_) delete gt_;
+    if (!gts_.empty()) {
+        for (auto &it: gts_) {
+            delete it;
+        }
+        gts_.clear();
+    }
     if (!genotype_attributes_.empty()) {
         for (auto &it: genotype_attributes_) {
             for (auto &it1: it) {

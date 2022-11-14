@@ -34,7 +34,7 @@ public:
 
     void writeHeader(bcf_hdr_t *hdr);
 
-    void write(const std::string &v_str,
+    void write(kstring_t *v_str,
         int32_t rid, int64_t start, int64_t end);
     void write(bcf1_t *v);
 };

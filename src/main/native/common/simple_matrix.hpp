@@ -167,7 +167,7 @@ public:
     /**
      * @brief get row data by row index
      */
-    T *row(int64_t row_index) {
+    T *row(int64_t row_index) const {
         row_index = row_index > 0 ? row_index : -row_index;
         if (row_index >= n_rows_)
         {

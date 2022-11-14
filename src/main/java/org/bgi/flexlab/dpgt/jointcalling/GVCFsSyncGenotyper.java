@@ -221,7 +221,10 @@ public class GVCFsSyncGenotyper {
     }
 
     public void apply(final Locatable loc, List<VariantContext> variants, ReferenceContext ref) {
-        final VariantContext mergedVC = merger.merge(variants, loc, includeNonVariants ? ref.getBase() : null, !includeNonVariants, false);
+        final VariantContext mergedVC = merger.merge(variants, loc, includeNonVariants ? ref.getBase() : null, !includeNonVariants, true, false);
+        if (mergedVC == null) {
+            return;
+        }
         final VariantContext regenotypedVC = regenotypeVC(mergedVC, ref, feature, includeNonVariants);
         if (regenotypedVC != null) {
             if (!GATKVariantContextUtils.isSpanningDeletionOnly(regenotypedVC)) {

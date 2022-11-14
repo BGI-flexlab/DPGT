@@ -75,6 +75,7 @@ public class JointCallingSparkOptions implements Serializable {
         addOption(null,"heterozygosity", true, "heterozygosity value used to compute prior likelihoods for any locus. [0.001]", false, "FLOAT");
         addOption(null,"indel-heterozygosity", true, "heterozygosity for indel calling. [1.25E-4]", false, "FLOAT");
         addOption(null,"heterozygosity-stdev", true, "standard deviation of heterozygosity for SNP and indel calling. [0.01]", false, "FLOAT");
+        addOption(null, "max-alternate-alleles", true, "Maximum number of alternate alleles to genotype. [6]", false, "INT");
         addOption(null,"ploidy", true, "ploidy (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool * Sample Ploidy). [2]", false, "INT");
         addOption(null,"local", false, "run spark in local mode, useful for debug.", false, null);
         addOption("h", "help", false, "print this message and exit.", false, null);
@@ -128,6 +129,7 @@ public class JointCallingSparkOptions implements Serializable {
         this.genotypeArguments.snpHeterozygosity = getOptionDoubleValue("heterozygosity", this.genotypeArguments.snpHeterozygosity);
         this.genotypeArguments.indelHeterozygosity = getOptionDoubleValue("indel-heterozygosity", this.genotypeArguments.snpHeterozygosity);
         this.genotypeArguments.heterozygosityStandardDeviation = getOptionDoubleValue("heterozygosity-stdev", this.genotypeArguments.heterozygosityStandardDeviation);
+        this.genotypeArguments.MAX_ALTERNATE_ALLELES = getOptionIntValue("max-alternate-alleles", this.genotypeArguments.MAX_ALTERNATE_ALLELES);
         this.genotypeArguments.samplePloidy = getOptionIntValue("ploidy", this.genotypeArguments.samplePloidy);
         this.uselocalMaster = getOptionFlagValue("local");
 

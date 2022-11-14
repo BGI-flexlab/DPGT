@@ -187,7 +187,7 @@ private:
 
     std::vector<FlatGenotype *> flat_genotypes_;
 
-    VcfAttributeGT *gt_ = nullptr;
+    std::vector<VcfAttributeGT *> gts_;
     // vcf FORMAT of each sample
     std::vector<std::vector<VcfAttributeBase *>> genotype_attributes_;
 

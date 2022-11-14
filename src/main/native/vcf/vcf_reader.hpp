@@ -14,6 +14,7 @@
 #include "htslib/vcf.h"
 #include "htslib/tbx.h"
 #include "common/simple_interval.hpp"
+#include "vcf/vcf_id_table.hpp"
 
 
 /**
@@ -67,6 +68,14 @@ public:
         return intervals_;
     }
 
+    void setIdTables(VcfKeyMaps *vcf_key_maps_) {
+        id_tables_ = VcfIdTables(header(), vcf_key_maps_);
+    }
+
+    VcfIdTables *getIdTables() {
+        return &id_tables_;
+    }
+
 private:
     htsFile *file_ptr_ = nullptr;
     tbx_t *tbx_idx_ = nullptr;
@@ -77,6 +86,7 @@ private:
     kstring_t tmps_ = {0, 0, NULL};
     const std::vector<SimpleInterval> *intervals_ = nullptr; // target intervals
     std::vector<SimpleInterval>::const_iterator intervals_iter_;
+    VcfIdTables id_tables_;
 };
 
 #endif  // VCF_READER_HPP

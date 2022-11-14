@@ -65,19 +65,19 @@ void VcfWriter::writeHeader(bcf_hdr_t *hdr)
 }
 
 
-void VcfWriter::write(const std::string &v_str, int32_t rid, int64_t start,
+void VcfWriter::write(kstring_t *v_str, int32_t rid, int64_t start,
     int64_t end)
 {
     if (fp_->format.format == vcf || fp_->format.format == text_format) {
         int ret;
         if (fp_->format.compression != no_compression) {
-            ret = bgzf_write(fp_->fp.bgzf, v_str.c_str(), v_str.size());
+            ret = bgzf_write(fp_->fp.bgzf, v_str->s, v_str->l);
         }
         else {
-            ret = hwrite(fp_->fp.hfile, v_str.c_str(), v_str.size());
+            ret = hwrite(fp_->fp.hfile, v_str->s, v_str->l);
         }
         
-        if (ret != static_cast<int>(v_str.size())) {
+        if (ret != static_cast<int>(v_str->l)) {
             std::cerr << "[VcfWriter::write] IO Error!" << std::endl;
             std::exit(1);
         }
@@ -101,7 +101,7 @@ void VcfWriter::write(const std::string &v_str, int32_t rid, int64_t start,
             }
         }
     } else {
-        kputsn(v_str.c_str(), v_str.size()-1, ks_clear(&tmp_var_ks_));
+        kputsn(v_str->s, v_str->l-1, ks_clear(&tmp_var_ks_));
         if (v_ == nullptr) v_ = bcf_init1();
         vcf_parse(&tmp_var_ks_, header_, v_);
         write(v_);

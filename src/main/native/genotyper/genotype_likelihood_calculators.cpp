@@ -8,7 +8,7 @@
 #include <vector>
 
 
-
+// genotype counts for ploidy:2 and alleles:1000
 const int GenotypeLikelihoodCalculators::MAXIMUM_STRONG_REF_GENOTYPE_PER_PLOIDY = 500500;
 
 const int GenotypeLikelihoodCalculators::GENOTYPE_COUNT_OVERFLOW = -1;

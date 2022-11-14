@@ -73,13 +73,15 @@ void CombineGVCFsOnSites::apply(
             chrom_, site, site);
         merged_var = reference_confident_var_merger_.merge(
             variants_vec, SimpleInterval{tid_, site, site}, ref_seq.front(),
-            getMergedHeader(), getKeyMaps(), &tmp_var_ks_);
+            getMergedHeader(), getKeyMaps(), false, false, -1, &tmp_var_ks_);
     } else {
         merged_var = referenceBlockMerge(variants_vec, site);
     }
 
-    vcf_writer_->write(merged_var.var_str, merged_var.rid,
+    if (merged_var.var_ks && merged_var.var_ks->l > 1) {
+        vcf_writer_->write(merged_var.var_ks, merged_var.rid,
             merged_var.start, merged_var.end);
+    }
 }
 
 
@@ -152,7 +154,6 @@ VariantStringWithPos CombineGVCFsOnSites::referenceBlockMerge(
         delete it.second;
     }
 
-    std::string var_str = ks_c_str(&tmp_var_ks_);
-    return {var_str, variant_builder.tid(), variant_builder.start(),
+    return {&tmp_var_ks_, variant_builder.tid(), variant_builder.start(),
         variant_builder.end()};
 }

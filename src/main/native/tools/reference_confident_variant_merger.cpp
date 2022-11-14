@@ -27,10 +27,25 @@
 #include <vector>
 
 
+static inline bool onlyContainsSpanDel(const std::vector<Allele> &alleles) {
+    for (size_t i = 1; i < alleles.size(); ++i) {
+        if (alleles[i].getDisplayString() != Allele::SPAN_DEL_STRING) {
+            return false;
+        }
+    }
+    return true;
+}
+
+
 VariantStringWithPos ReferenceConfidentVariantMerger::merge(
     std::vector<std::shared_ptr<VariantContext>> &vcs,
-    const SimpleInterval &loc, char ref_base,
-    bcf_hdr_t *merged_header, VcfKeyMaps *key_maps,
+    const SimpleInterval &loc,
+    char ref_base,
+    bcf_hdr_t *merged_header,
+    VcfKeyMaps *key_maps,
+    bool remove_non_ref_allele,
+    bool skip_span_del_only,
+    int max_alt_alleles,
     kstring_t *out_var_ks)
 {
     Allele ref_allele = determineRefAlleleGivenRefBase(vcs, loc, ref_base);
@@ -88,6 +103,14 @@ VariantStringWithPos ReferenceConfidentVariantMerger::merge(
         new_allele_map_indices.erase(itr);
     }
 
+    if (remove_non_ref_allele) {
+        itr = new_allele_map_indices.find(Allele::NON_REF_ALLELE);
+        if (itr != new_allele_map_indices.end()) {
+            free(itr->second);
+            new_allele_map_indices.erase(itr);
+        }
+    }
+
     // non_ref_allele_indices for each variant context
     int *non_ref_allele_indices = (int *)malloc(vcs.size()*sizeof(int));
     for (size_t i = 0; i < vcs.size(); ++i) {
@@ -114,6 +137,34 @@ VariantStringWithPos ReferenceConfidentVariantMerger::merge(
             }
         }
         ++i;
+    }
+
+    if (skip_span_del_only && new_alleles.size() == 2 && onlyContainsSpanDel(new_alleles)) {
+        free(non_ref_allele_indices);
+        for (auto &itr: new_allele_map_indices) {
+            free(itr.second);
+        }
+        return {NULL, 0, 0, 0};
+    } 
+
+    // fliter alt alleles if it > max_alt_alleles
+    if (max_alt_alleles > 0 && (int)(new_alleles.size() - 1) > max_alt_alleles)
+    {
+        new_alleles = calculateMostLikelyAlleles(new_alleles, allele_index_map, vcs, max_alt_alleles, !remove_non_ref_allele);
+
+        // reconstruct allele_index_map
+        allele_index_map = SimpleMatrix<int>(vcs.size(), new_alleles.size());
+        for (size_t i = 0; i < new_alleles.size(); ++i) {
+            int *old_allele_indices = new_allele_map_indices.at(new_alleles[i]);
+            for (size_t j = 0; j < vcs.size(); ++j) {
+                allele_index_map(j, i) = old_allele_indices[j];
+                if (allele_index_map(j, i) < 0) {
+                    // if new allele not match any old allele for this variant
+                    // map it to <NON-REF> allele index(last allele of vc)
+                    allele_index_map(j, i) = non_ref_allele_indices[j];
+                }
+            }
+        }
     }
 
     free(non_ref_allele_indices);
@@ -191,7 +242,6 @@ VariantStringWithPos ReferenceConfidentVariantMerger::merge(
 
 
     variant_builder.makeString(ks_clear(out_var_ks));
-    std::string var_str = ks_c_str(out_var_ks);
 
     for (auto &it: merged_genotypes) {
         // ugly, need remember what is newed and delete them here
@@ -204,7 +254,7 @@ VariantStringWithPos ReferenceConfidentVariantMerger::merge(
         delete it.second;
     }
 
-    return {var_str, variant_builder.tid(), variant_builder.start(),
+    return {out_var_ks, variant_builder.tid(), variant_builder.start(),
         variant_builder.end()};
 }
 
@@ -302,6 +352,8 @@ ReferenceConfidentVariantMerger::mergeReferenceConfidenceGenotypes(
         (int **)malloc((max_ploidy_add1)*sizeof(int *));
     for (int i = 0; i < max_ploidy_add1; ++i)
         genotype_index_maps_by_ploidy[i] = nullptr;
+    int *genotype_index_maps_by_ploidy_size =
+        (int *)calloc(max_ploidy_add1, sizeof(int));
     
     // TODO: 什么情况下旧allele数目小于新allele数目？
     int max_allele_count = std::max(vc->getNAllele(), num_new_alleles);
@@ -317,17 +369,16 @@ ReferenceConfidentVariantMerger::mergeReferenceConfidenceGenotypes(
         FlatGenotype *new_genotype = new FlatGenotype(*g);
 
         if (g->hasPL()) {
-            int genotype_index_map_size = 0;
             if (genotype_index_maps_by_ploidy[ploidy] == nullptr) {
                 genotype_index_maps_by_ploidy[ploidy] =
                     createGenotypeLikelihoodCalculator(ploidy, max_allele_count,
                         calculators_).genotypeIndexMap(allele_index_map,
-                        num_new_alleles, calculators_, genotype_index_map_size);
+                        num_new_alleles, calculators_, genotype_index_maps_by_ploidy_size[ploidy]);
             }
             int *genotype_index_map = genotype_index_maps_by_ploidy[ploidy];
             
             VcfAttribute<int32_t> *new_pl = createPL(
-                g->getPL(), genotype_index_map, genotype_index_map_size);
+                g->getPL(), genotype_index_map, genotype_index_maps_by_ploidy_size[ploidy]);
             new_genotype->setPL(new_pl);
 
             VcfAttribute<int32_t> *new_ad = nullptr;
@@ -346,6 +397,7 @@ ReferenceConfidentVariantMerger::mergeReferenceConfidenceGenotypes(
         results.push_back(new_genotype);
     }
 
+    free(genotype_index_maps_by_ploidy_size);
     // free genotype_index_maps_by_ploidy
     for (int i = 0; i < max_ploidy_add1; ++i) {
         if (genotype_index_maps_by_ploidy[i])
@@ -559,3 +611,123 @@ ReferenceConfidentVariantMerger::mergeSharedAttributes(
     }
     return result;
 }
+
+
+std::vector<Allele> ReferenceConfidentVariantMerger::calculateMostLikelyAlleles(
+    const std::vector<Allele> &new_alleles,
+    const SimpleMatrix<int> &allele_index_map,
+    const std::vector<std::shared_ptr<VariantContext>> &vcs,
+    int num_alt_alleles_to_keep,
+    bool has_non_ref_allele)
+{
+    int non_ref_allele_idx = -1;
+
+    if (has_non_ref_allele) {
+        for (int i = (int)new_alleles.size() - 1; i > -1; --i)
+        {
+            if (new_alleles[i].isNonRefAllele()) {
+                non_ref_allele_idx = i;
+                break;
+            }
+        }
+    }
+
+    if (non_ref_allele_idx > -1 &&
+        static_cast<int>(new_alleles.size()) - 2 <= num_alt_alleles_to_keep)
+    {
+        return new_alleles;
+    }
+
+    std::vector<double> likelihood_sums = calculateLikelihoodSums(new_alleles, allele_index_map, vcs);
+    auto cmp = [&likelihood_sums](int i, int j) -> bool { return likelihood_sums[i] > likelihood_sums[j]; };
+    std::vector<int> indices(new_alleles.size(), 0);
+    for (int i = 0; i < (int)new_alleles.size(); ++i) {
+        indices[i] = i;
+    }
+    std::sort(indices.begin()+1, indices.end(), cmp);  // sork by likelihood sums, ref allele always at front
+    std::sort(indices.begin()+1, indices.begin()+1+num_alt_alleles_to_keep);  // sort first num_alt_alleles_to_keep, to keep orders in new_alleles
+    std::vector<Allele> results;
+    results.reserve(num_alt_alleles_to_keep+2);
+    int num_alt_alleles_to_keep_p1 = num_alt_alleles_to_keep + 1;
+    bool has_add_non_ref = false;
+    for (int i = 0; i < num_alt_alleles_to_keep_p1; ++i) {
+        if (indices[i] == non_ref_allele_idx) {
+            has_add_non_ref = true;
+        }
+        results.push_back(new_alleles[indices[i]]);
+    }
+    if (!has_add_non_ref && non_ref_allele_idx > -1) {
+        results.push_back(new_alleles[non_ref_allele_idx]);
+    }
+    return results;
+}
+
+
+static int *reverseArrayIndexAndValue(const int *a, int l, int s, int *rev, int &rev_l) {
+    for (int i = 0; i < rev_l; ++i) {
+        rev[i] = -1;  // init values to -1
+    }
+    const int rev_l1 = rev_l - 1;
+    int j;
+    for (int i = 0; i < l; ++i) {
+        j = a[i];
+        if (j >= rev_l1) {
+            const int new_size = j + 10;
+            rev = (int *)realloc(rev, new_size*sizeof(int));
+            for (int k = rev_l; k < new_size; ++k) {
+                rev[k] = -1;  // init new allocated values to -1
+            }
+            rev_l = new_size;
+        }
+        if (j != s) rev[j] = i;  // keep rev[s] == -1
+    }
+    return rev;
+}
+
+std::vector<double> ReferenceConfidentVariantMerger::calculateLikelihoodSums(
+    const std::vector<Allele> &new_alleles,
+    const SimpleMatrix<int> &allele_index_map,
+    const std::vector<std::shared_ptr<VariantContext>> &vcs)
+{
+    std::vector<double> likelihood_sums = std::vector<double>(new_alleles.size(), 0.0);
+    int *old_to_new_index_map = (int *)malloc(new_alleles.size()*sizeof(int));
+    int old_to_new_index_map_size = new_alleles.size();
+    for (size_t i = 0; i < vcs.size(); ++i) {
+        std::shared_ptr<VariantContext> vc = vcs[i];
+        if (vc->getNAllele() < 3) {
+            // assume vc is a gvcf variant record, number of allele < 3 means it is not a true variant
+            continue;
+        }
+        old_to_new_index_map = reverseArrayIndexAndValue(allele_index_map.row(i), allele_index_map.cols(),
+            vc->getNAllele()-1, old_to_new_index_map, old_to_new_index_map_size);
+        for (auto &genotype: vc->getFlatGenotypes()) {
+            GenotypeLikelihoods gls = genotype->getLikelihoods();
+            if (gls.empty()) {
+                continue;
+            }
+            const EigenArrayXd &log10_likelihoods = gls.log10_likelihoods();
+            int index_of_max_gl;
+            log10_likelihoods.maxCoeff(&index_of_max_gl);
+            if (index_of_max_gl == 0) {
+                continue;  // skip when hom-ref gt has max gl
+            }
+            double gl_diff_bt_ref_and_best = log10_likelihoods[index_of_max_gl] - log10_likelihoods[0];
+            int ploidy = genotype->getPloidy() > 0 ? genotype->getPloidy() : default_ploidy_;
+
+            // allele counts(genotype) of the max gl
+            std::vector<int> allele_counts =
+                createGenotypeLikelihoodCalculator(ploidy, vc->getNAllele(), calculators_)
+                .genotypeAlleleCountsAt(index_of_max_gl)
+                .alleleCountsByIndex(vc->getNAllele()-1);
+
+            for (int a = 1; a < (int)allele_counts.size(); ++a) {
+                if (allele_counts[a] > 0 && a < old_to_new_index_map_size && old_to_new_index_map[a] > 0) {
+                    likelihood_sums[old_to_new_index_map[a]] += gl_diff_bt_ref_and_best;
+                }
+            }
+        }
+    }
+    free(old_to_new_index_map);
+    return likelihood_sums;
+}
+

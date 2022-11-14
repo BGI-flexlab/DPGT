@@ -65,11 +65,13 @@ public final class ReferenceConfidenceVariantContextMerger {
      * @param loc     the current location
      * @param refBase the reference allele to use if all contexts in the VC are spanning (i.e. don't start at the location in loc); if null, we'll return null in this case
      * @param removeNonRefSymbolicAllele if true, remove the <NON_REF> allele from the merged VC
+     * @param skipSpanDelOnly if true, return null if merged alleles(new alleles from all vcs) contains only SPAN-DEL(*) and REF allele
      * @param samplesAreUniquified  if true, sample names have been uniquified
      * @return new VariantContext representing the merge of all vcs or null if it not relevant
      */
     public VariantContext merge(final List<VariantContext> vcs, final Locatable loc, final Byte refBase,
-                                final boolean removeNonRefSymbolicAllele, final boolean samplesAreUniquified) {
+                                final boolean removeNonRefSymbolicAllele, final boolean skipSpanDelOnly,
+                                final boolean samplesAreUniquified) {
         Utils.nonEmpty(vcs);
 
         // establish the baseline info (sometimes from the first VC)
@@ -95,6 +97,12 @@ public final class ReferenceConfidenceVariantContextMerger {
         // select most likely alleles(calculateMostLikelyAlleles) to reduce memory
         if (genotypeArgs != null && allelesList.size() - 1 > genotypeArgs.MAX_ALTERNATE_ALLELES) {
             allelesList = AlleleFilterCalculateMostLikelyAlleles(vcAndNewAllelePairs, allelesList, genotypeArgs.MAX_ALTERNATE_ALLELES);
+        }
+
+        if (skipSpanDelOnly) {
+            if (allelesList.size() == 2 && GATKVCFConstants.isSpanningDeletion(allelesList.get(1))) {
+                return null;
+            }
         }
 
         final Set<String> rsIDs = new LinkedHashSet<>(1); // most of the time there's one id
@@ -655,7 +663,7 @@ public final class ReferenceConfidenceVariantContextMerger {
 
     private List<Allele> AlleleFilterCalculateMostLikelyAlleles(final List<VCWithNewAlleles> vcAndNewAllelePairs, final List<Allele> targetAlleles, final int numAltAllelesToKeep) {
         final int targetNonRefAltAlleleIndex = targetAlleles.indexOf(Allele.NON_REF_ALLELE);
-        if (targetNonRefAltAlleleIndex >= 0 && targetAlleles.size() - 1 <= numAltAllelesToKeep)
+        if (targetNonRefAltAlleleIndex >= 0 && targetAlleles.size() - 2 <= numAltAllelesToKeep)
         {
             return targetAlleles;
         }
@@ -680,6 +688,9 @@ public final class ReferenceConfidenceVariantContextMerger {
                 }
                 final double[] glsVector = gls.getAsVector();
                 final int indexOfMostLikelyGenotype = MathUtils.maxElementIndex(glsVector);
+                if (indexOfMostLikelyGenotype == PL_INDEX_OF_HOM_REF) {
+                    continue;
+                } 
                 final double GLDiffBetweenRefAndBest = glsVector[indexOfMostLikelyGenotype] - glsVector[PL_INDEX_OF_HOM_REF];
                 final int ploidy = genotype.getPloidy() > 0 ? genotype.getPloidy() : genotypeArgs.samplePloidy;
 
