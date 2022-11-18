@@ -16,7 +16,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 public class ConcatGenotypeGVCFsJob extends DPGTJobAsync<List<String>, Integer> {
     private static final Logger logger = LoggerFactory.getLogger(ConcatGenotypeGVCFsJob.class);
-    private final JointCallingSparkOptions jcOptions;
+    private boolean isNull = false;
+    private JointCallingSparkOptions jcOptions;
     private JavaSparkContext sc;
     private List<String> genotypeGVCFsList;
     private String genotypeHeader;
@@ -39,6 +40,24 @@ public class ConcatGenotypeGVCFsJob extends DPGTJobAsync<List<String>, Integer> 
         this.jcOptions = jcOptions;
         this.idx = idx;
         this.stateFile = getStateFilePath();
+    }
+
+    public ConcatGenotypeGVCFsJob() {
+        this.isNull = true;
+    }
+
+    boolean isNull() {
+        return this.isNull;
+    }
+    
+    void setToNull() {
+        this.isNull = true;
+        this.jcOptions = null;
+        this.sc = null;
+        this.genotypeGVCFsList = null;
+        this.genotypeHeader = null;
+        this.outputPath = null;
+        this.idx = 0;
     }
 
     public void submit() {

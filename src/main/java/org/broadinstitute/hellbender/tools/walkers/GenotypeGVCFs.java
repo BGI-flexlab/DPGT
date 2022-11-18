@@ -237,7 +237,7 @@ public final class GenotypeGVCFs extends VariantLocusWalker {
         final List<VariantContext> variantsToProcess = getVariantSubsetToProcess(loc, variants);
 
         ref.setWindow(10, 10); //TODO this matches the gatk3 behavior but may be unnecessary
-        final VariantContext mergedVC = merger.merge(variantsToProcess, loc, includeNonVariants ? ref.getBase() : null, !includeNonVariants, false);
+        final VariantContext mergedVC = merger.merge(variantsToProcess, loc, includeNonVariants ? ref.getBase() : null, !includeNonVariants, true, false);
         final VariantContext regenotypedVC = regenotypeVC(mergedVC, ref, features, includeNonVariants);
         if (regenotypedVC != null) {
             final SimpleInterval variantStart = new SimpleInterval(regenotypedVC.getContig(), regenotypedVC.getStart(), regenotypedVC.getStart());
