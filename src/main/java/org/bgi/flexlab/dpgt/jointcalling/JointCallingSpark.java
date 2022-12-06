@@ -140,9 +140,9 @@ public class JointCallingSpark {
 
         if (!pre2ConcatVCFJob.isNull()) pre2ConcatVCFJob.get();
         int j = intervalsToTravers.size() - s - 1;
-        safeDeleteDirectory(allGenotypeDirs.get(j));
-
+        
         if (jcOptions.deleteIntermediateResults) {
+            safeDeleteDirectory(allGenotypeDirs.get(j));
             safeDeleteDirectory(combineVCFHeaderJob.headerDir);
         }
 

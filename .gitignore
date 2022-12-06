@@ -1,5 +1,6 @@
 .vscode
 .idea
+.cache
 src/main/native/build
 src/main/native/.cache
 test
