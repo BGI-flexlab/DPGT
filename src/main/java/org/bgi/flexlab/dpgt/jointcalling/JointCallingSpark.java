@@ -121,10 +121,6 @@ public class JointCallingSpark {
             combineGVCFsOnSiteJob.run();
             allCombineDirs.add(combineGVCFsOnSiteJob.combineDir);
 
-            if (jcOptions.deleteIntermediateResults) {
-                safeDeleteDirectory(variantFinderJob.variantSiteDir);
-            }
-
             logger.info("Genotyping gvcfs in {} ({})", interval.toString(), cycleStr);
             GVCFsSyncGenotyperJob genotyperJob = new GVCFsSyncGenotyperJob(jcOptions, sc, i,
                 combineGVCFsOnSiteJob.subIntervals, combineGVCFsOnSiteJob.subVariantBitSets, combineGVCFsOnSiteJob.combinedGVCFsList,
@@ -144,6 +140,10 @@ public class JointCallingSpark {
         if (jcOptions.deleteIntermediateResults) {
             safeDeleteDirectory(allGenotypeDirs.get(j));
             safeDeleteDirectory(combineVCFHeaderJob.headerDir);
+            for (int i = 0; i < intervalsToTravers.size(); ++i) {
+                File variantSiteDir = new File(jcOptions.output+"/"+JointCallingSparkConsts.VARIANT_SITE_PREFIX+i);
+                safeDeleteDirectory(variantSiteDir);
+            }
         }
 
         sc.close();
