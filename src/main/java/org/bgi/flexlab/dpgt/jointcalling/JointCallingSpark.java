@@ -215,9 +215,14 @@ public class JointCallingSpark {
         return input;
     }
 
-    private static void safeDeleteDirectory(File dir) throws IOException {
+    private static void safeDeleteDirectory(File dir) {
         if (dir != null && dir.exists()) {
-            FileUtils.deleteDirectory(dir);
+            try {
+                FileUtils.deleteDirectory(dir);
+            } catch (Exception e) {
+                // in some case, we may failed to delete dir because it is using by other process.
+                logger.warn("Unable to delete directory {}.", dir.getAbsolutePath());
+            }
         }
     }
 }
