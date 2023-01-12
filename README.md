@@ -10,7 +10,7 @@ Get DGPT from github.
 ```sh
 git clone git@github.com:BGI-flexlab/DPGT.git
 # switch to the tag we need
-git checkout v1.1.4.0
+git checkout v1.2.6.0
 ```
 
 DPGT is implemented using C++ and java, first we need to compile C++ libraries using following commands.
@@ -32,7 +32,7 @@ the jar package will be placed in `target` directory.
 
 ```
 DPGT: Distributed Population Genetics analysis Tools
-Version: 1.1.4.0
+Version: 1.2.6.0
 
 Options:
  -i,--input <FILE>                        input gvcf list in a file.
@@ -49,6 +49,7 @@ Options:
     --heterozygosity <FLOAT>              heterozygosity value used to compute prior likelihoods for any locus. [0.001]
     --indel-heterozygosity <FLOAT>        heterozygosity for indel calling. [1.25E-4]
     --heterozygosity-stdev <FLOAT>        standard deviation of heterozygosity for SNP and indel calling. [0.01]
+    --max-alternate-alleles <INT>         Maximum number of alternate alleles to genotype. [6]
     --ploidy <INT>                        ploidy (number of chromosomes) per sample. For pooled data, set to (Number of samples in each pool *
                                           Sample Ploidy). [2]
     --local                               run spark in local mode, useful for debug.
