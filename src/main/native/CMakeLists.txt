@@ -30,7 +30,10 @@ if (NOT EXISTS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
     execute_process(COMMAND mkdir -p ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 endif (NOT EXISTS ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
-set(CMAKE_BUILD_TYPE Release CACHE STRING "build type is Release")
+# set default build type to Release
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose Release or Debug build type" FORCE)
+endif()
 
 # CXX configure
 if (CMAKE_BUILD_TYPE STREQUAL Debug)
