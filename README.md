@@ -20,6 +20,7 @@ DPGT is implemented using C++ and java, first we need to compile C++ libraries u
 # in DPGT root directory
 mkdir build
 cd build && cmake -DCMAKE_PREFIX_PATH=/path/to/boost -DJAVA_INCLUDE_PATH=/path/to/jdk/include ../src/main/native/
+make -j 8
 ```
 the compiled C++ libraries will be placed in `build/lib` directory.
 
