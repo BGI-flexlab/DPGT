@@ -54,7 +54,7 @@ public class JointCallingSpark {
         CombineVCFHeaderJob combineVCFHeaderJob = new CombineVCFHeaderJob(vcfpathsRDDPartitionByCombineParts, jcOptions);
         final String genotypeHeader = combineVCFHeaderJob.run();
 
-        JavaRDD<String> vcfpathsRDDPartitionByJobs = sc.textFile(addFilePrefixIfNeed(jcOptions.input), PARTITION_COEFFICIENT * jcOptions.jobs);
+        JavaRDD<String> vcfpathsRDDPartitionByJobs = sc.textFile(addFilePrefixIfNeed(jcOptions.input), jcOptions.jobs);
 
         int s = 0; // first interval that have not beed traversed
         int n = 0;
