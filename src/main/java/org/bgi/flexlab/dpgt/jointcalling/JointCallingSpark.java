@@ -111,7 +111,7 @@ public class JointCallingSpark {
                 allGenotyperJobs.add(null);
                 allGenotypeDirs.add(null);
                 logger.info("skip interval: {}, because there is no variant site in it ({})", interval.toString(), cycleStr);
-                handleJobDependency(i, s, allGenotyperJobs, jcOptions, sc, genotypeHeader, pre2ConcatVCFJob, allCombineDirs, allGenotypeDirs);
+                pre2ConcatVCFJob = handleJobDependency(i, s, allGenotyperJobs, jcOptions, sc, genotypeHeader, pre2ConcatVCFJob, allCombineDirs, allGenotypeDirs);
                 continue;
             }
 
@@ -175,10 +175,12 @@ public class JointCallingSpark {
                 preConcatVCFJob.submit();
                 pre2ConcatVCFJob = preConcatVCFJob;
             } else {
+                if (!pre2ConcatVCFJob.isNull()) pre2ConcatVCFJob.get();  // -2 job
                 if (i == 1) {
                     ArrayList<String> preGenotypedVcfList = new ArrayList<>();
                     preGenotypedVcfList.add(null);
                     preConcatVCFJob = new ConcatGenotypeGVCFsJob(jcOptions, sc, preGenotypedVcfList, genotypeHeader, 0);
+                    preConcatVCFJob.submit();
                 }
                 if (preConcatVCFJob != null) {
                     pre2ConcatVCFJob = preConcatVCFJob;

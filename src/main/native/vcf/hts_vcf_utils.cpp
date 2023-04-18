@@ -1,5 +1,7 @@
 #include <algorithm>
 #include <boost/algorithm/string/join.hpp>
+#include <cerrno>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -10,6 +12,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "htslib/kstring.h"
 #include "htslib/vcf.h"
 #include "vcf/hts_vcf_utils.hpp"
 
@@ -109,6 +112,15 @@ void bcf_hdr_rename_dup_samples(std::vector<bcf_hdr_t *> headers,
 }
 
 
+static char *find_chrom_header_line(char *s)
+{
+    char *nl;
+    if (strncmp(s, "#CHROM\t", 7) == 0) return s;
+    else if ((nl = strstr(s, "\n#CHROM\t")) != NULL) return nl+1;
+    else return NULL;
+}
+
+
 bcf_hdr_t *bcf_hdr_merge_add_samples(std::vector<bcf_hdr_t *> headers)
 {
     std::set<std::string> samples;
@@ -120,39 +132,81 @@ bcf_hdr_t *bcf_hdr_merge_add_samples(std::vector<bcf_hdr_t *> headers)
     }
 
     // merge header
-    bcf_hdr_t *result = NULL;
+    bcf_hdr_t *merged_hrd1 = NULL;
     for (size_t i=0; i<headers.size(); ++i)
-        result = bcf_hdr_merge(result, headers[i]);
+        merged_hrd1 = bcf_hdr_merge(merged_hrd1, headers[i]);
+    
+    int res = 0;
     
     // clear all samples
-    int res = bcf_hdr_set_samples(result, NULL, 0);
-    if (res < 0) {
+    res |= bcf_hdr_set_samples(merged_hrd1, NULL, 0) < 0;
+    if (res) {
         std::cerr << "[bcf_hdr_merge_add_samples] Error! can not clear bcf "
             << "header samples" << std::endl;
         std::exit(1);
     }
 
     // not use keep_samples bit set; keep all samples
-    if (result->keep_samples) free(result->keep_samples);
-    result->keep_samples = NULL;
+    if (merged_hrd1->keep_samples) free(merged_hrd1->keep_samples);
+    merged_hrd1->keep_samples = NULL;
+    
+    kstring_t merged_hrd1_str = {0,0,0};
+    kstring_t result_str = {0,0,0};
 
-    // add new samples
-    for (auto const &s: samples) {
-        res = bcf_hdr_add_sample(result, s.c_str());
-        if (res < 0) {
-            std::cerr << "[bcf_hdr_merge_add_samples] Error! can not add sample"
-                << " to bcf header " << std::endl;
-            std::exit(1);
-        }
-        res = bcf_hdr_sync(result);
-        if (res < 0) {
-            std::cerr << "[bcf_hdr_merge_add_samples] Error! can not sync after"
-                << "add sample to bcf header " << std::endl;
-            std::exit(1);
-        }
+    if (bcf_hdr_format(merged_hrd1, 1, &merged_hrd1_str) < 0) {
+        std::cerr << "[bcf_hdr_merge_add_samples] Error! can not convert "
+            << "merged header 1 to string" << std::endl;
+        ks_free(&merged_hrd1_str);
+        ks_free(&result_str);
+        bcf_hdr_destroy(merged_hrd1);
+        std::exit(1);
     }
+
+    bcf_hdr_t *result = bcf_hdr_init("w");
+    bcf_hdr_set_version(result, bcf_hdr_get_version(merged_hrd1));
+
+    if (merged_hrd1_str.l > 0) merged_hrd1_str.s[merged_hrd1_str.l-1] = '\t';
+    res |= kputs("FORMAT\t", &merged_hrd1_str) < 0;
+    char *p = find_chrom_header_line(merged_hrd1_str.s);
+    int i = 0, end = 8;
+    while ((p = strchr(p, '\t')) != 0 && i < end) ++i, ++p;
+    if (i != end) {
+        std::cerr << "[bcf_hdr_merge_add_samples] Error! Wrong number of "
+            << "columns in header #CHROM line" << std::endl;
+        ks_free(&merged_hrd1_str);
+        ks_free(&result_str);
+        bcf_hdr_destroy(merged_hrd1);
+        std::exit(1);
+    }
+
+    res |= kputsn(merged_hrd1_str.s, p - merged_hrd1_str.s, &result_str) < 0;
+    for (auto const &s: samples) {
+        res |= kputc('\t', &result_str) < 0;
+        res |= kputs(s.c_str(), &result_str) < 0;
+    }
+
+    while (result_str.l &&
+        (!result_str.s[result_str.l-1] || result_str.s[result_str.l-1]=='\n') )
+        result_str.l--; // kill trailing zeros and newlines
+    res |= kputc('\n',&result_str) < 0;
+
+    if (res) {
+        std::cerr << "[bcf_hdr_merge_add_samples] Error! "
+            << strerror(errno) << std::endl;
+        ks_free(&merged_hrd1_str);
+        ks_free(&result_str);
+        bcf_hdr_destroy(merged_hrd1);
+        std::exit(1);
+    }
+
+    if (bcf_hdr_parse(result, result_str.s) < 0) {
+        bcf_hdr_destroy(result);
+        result = NULL;
+    }
+
+    ks_free(&merged_hrd1_str);
+    ks_free(&result_str);
+    bcf_hdr_destroy(merged_hrd1);
 
     return result;
 }
-
-
