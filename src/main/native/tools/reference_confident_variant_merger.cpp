@@ -244,6 +244,7 @@ VariantStringWithPos ReferenceConfidentVariantMerger::merge(
     variant_builder.makeString(ks_clear(out_var_ks));
 
     for (auto &it: merged_genotypes) {
+        if (it == nullptr) continue;
         // ugly, need remember what is newed and delete them here
         if (it->hasPL()) delete it->getPL();
         if (it->hasAD()) delete it->getAD();
