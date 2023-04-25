@@ -66,7 +66,7 @@ void MultiVcfReader::ReloadBuffers() {
     tmp.reserve(buffers_.size());
     while (!buffers_.empty()) {
         VcfIBuffer *b = buffers_.top();
-        tmp.push_back(b);
+        if (b != nullptr) tmp.push_back(b);
         buffers_.pop();
     }
     for (VcfIBuffer *b: tmp) buffers_.push(b);
