@@ -19,6 +19,8 @@ MultiVcfReader::MultiVcfReader(std::vector<std::string> files,
         if (buffer->First() != nullptr) {
             buffers_.push(buffer);
             buffers_vec_.push_back(buffer);
+        } else {
+            delete buffer;
         }
     }
 
