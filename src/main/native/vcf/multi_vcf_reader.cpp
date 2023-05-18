@@ -16,12 +16,8 @@ MultiVcfReader::MultiVcfReader(std::vector<std::string> files,
         VcfReader *reader = new VcfReader(files_[i], require_index);
         readers_.push_back(reader);
         VcfIBuffer *buffer = new VcfIBuffer(reader);
-        if (buffer->First() != nullptr) {
-            buffers_.push(buffer);
-            buffers_vec_.push_back(buffer);
-        } else {
-            delete buffer;
-        }
+        buffers_.push(buffer);
+        buffers_vec_.push_back(buffer);
     }
 
     std::vector<bcf_hdr_t *> headers;
