@@ -118,7 +118,7 @@ void VcfReader::Open(const std::string &file_name, bool require_index) {
             std::exit(1);
         }
         // seek to the start offset before any explicit call of Query*
-        Queryi(HTS_IDX_START, 0, 0);
+        // Queryi(HTS_IDX_START, 0, 0);
     } else {
         if ( file_ptr_->format.format==bcf ||
             file_ptr_->format.format==vcf )
@@ -257,7 +257,7 @@ bcf1_t *VcfReader::Read(bcf1_t *record) {
     }
 
     int ret;
-    if (streaming_) {
+    if (streaming_ || itr_ == nullptr) {
         if ( file_ptr_->format.format==vcf )
         {
             if ( (ret=hts_getline(file_ptr_, KS_SEP_LINE, &tmps_)) < 0 )
