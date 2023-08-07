@@ -14,6 +14,12 @@ void FlatGenotype::getString(const std::set<int> &format_key_indices,
             VCFConstants::UNPHASED.c_str(), ploidy);
     }
 
+    // Fixed the bug when there were no other fields except GT in FORMAT.
+    // line:26 --last error
+    if (format_key_indices.empty()) {
+        return;
+    }
+
     kputc(':', s);
     int n_miss = 0;
     VcfAttributeBase *a = nullptr;
