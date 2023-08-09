@@ -87,6 +87,14 @@ private:
     const std::vector<SimpleInterval> *intervals_ = nullptr; // target intervals
     std::vector<SimpleInterval>::const_iterator intervals_iter_;
     VcfIdTables id_tables_;
+
+    std::string getFileName() {
+        if (file_ptr_ != nullptr) {
+            return file_ptr_->fn;
+        } else {
+            return "";
+        }
+    }
 };
 
 #endif  // VCF_READER_HPP

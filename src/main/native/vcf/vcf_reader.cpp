@@ -144,7 +144,7 @@ VcfReader &VcfReader::Queryi(int32_t tid, int64_t start, int64_t end) {
 
     if (streaming_) {
         std::cerr << "[VcfReader::Queryi] Error! This reader is not support"
-            << " random query." << std::endl;
+            << " random query. vcf file: " << getFileName() << std::endl;
         std::exit(1);
     }
 
@@ -167,7 +167,8 @@ VcfReader &VcfReader::Queryi(int32_t tid, int64_t start, int64_t end) {
             const char *name = bcf_hdr_id2name(header_, tid);
             if (name == NULL) {
                 std::cerr << "[VcfReader::Queryi] Error! Failed to convert bcf"
-                    " tid:" << tid << " to name" << std::endl;
+                    " tid:" << tid << " to name. vcf file: "
+                    << getFileName() << std::endl;
                 std::exit(1);
             }
             tid = tbx_name2id(tbx_idx_, name);
@@ -196,7 +197,7 @@ VcfReader &VcfReader::Querys(
 
     if (streaming_) {
         std::cerr << "[VcfReader::Querys] Error! This reader is not support"
-            << " random query." << std::endl;
+            << " random query. vcf file: " << getFileName() << std::endl;
         std::exit(1);
     }
 
@@ -212,7 +213,8 @@ VcfReader &VcfReader::Querys(
     tid = bcf_hdr_name2id(header_, chrom.c_str());
     if (tid == -1) {
         std::cerr << "[VcfReader::Querys] Error! chrom " << chrom
-            << " not present in vcf/bcf header " << std::endl;
+            << " not present in vcf/bcf header. vcf file: "
+            << getFileName() << std::endl;
         std::exit(1);
     }
     // }
@@ -234,7 +236,7 @@ VcfReader &VcfReader::QueryIntervals(
 
     if (streaming_) {
         std::cerr << "[VcfReader::QueryIntervals] Error! This reader is not "
-            << "support random query." << std::endl;
+            << "support random query. vcf file: " << getFileName() << std::endl;
         std::exit(1);
     }
 
@@ -265,7 +267,7 @@ bcf1_t *VcfReader::Read(bcf1_t *record) {
             ret = vcf_parse1(&tmps_, header_, record);
             if ( ret < 0 ) {
                 std::cerr << "[VcfReader::Read] Error! Failed to parse vcf line"
-                    << "." << std::endl;
+                    << ". vcf file: " << getFileName()  << std::endl;
                 std::exit(1);
             }
         }
@@ -274,12 +276,13 @@ bcf1_t *VcfReader::Read(bcf1_t *record) {
             ret = bcf_read1(file_ptr_, header_, record);
             if ( ret < -1 ) {
                 std::cerr << "[VcfReader::Read] Error! Failed to parse bcf line"
-                    << "." << std::endl;
+                    << ". vcf file: " << getFileName() << std::endl;
                 std::exit(1);
             }
             if ( ret < 0 ) return nullptr; // no more lines or an error
         } else {
-            std::cerr << "[VcfReader::Read] Error! Wrong input file format."
+            std::cerr << "[VcfReader::Read] Error! Wrong input file format. "
+                << "vcf file: " << getFileName()
                 << std::endl;
             std::exit(1);
         }
@@ -297,14 +300,14 @@ bcf1_t *VcfReader::Read(bcf1_t *record) {
         ret = vcf_parse1(&tmps_, header_, record);
         if ( ret < 0 ) {
             std::cerr << "[VcfReader::Read] Error! Failed to parse vcf line"
-                << "." << std::endl;
+                << ". vcf file: " << getFileName() << std::endl;
             std::exit(1);
         }
     } else {  // bcf file
         while ((ret = bcf_itr_next(file_ptr_, itr_, record)) < 0) {
             if ( ret < -1 ) {
                 std::cerr << "[VcfReader::Read] Error! Failed to parse bcf line"
-                    << "." << std::endl;
+                    << ". vcf file: " << getFileName() << std::endl;
                 std::exit(1);
             }
             if (intervals_ != nullptr && intervals_iter_ != intervals_->end()) {
