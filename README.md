@@ -10,7 +10,7 @@ Get DGPT from github.
 ```sh
 git clone --recursive git@github.com:BGI-flexlab/DPGT.git
 # switch to the tag we need
-git checkout v1.2.7.0
+git checkout v1.2.13.0
 # update submodule, we need to do this because different version of DPGT may use different versions of submodules
 git submodule update --init
 ```
