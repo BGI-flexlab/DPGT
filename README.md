@@ -35,7 +35,7 @@ the jar package will be placed in `target` directory.
 
 ```
 DPGT: Distributed Population Genetics analysis Tools
-Version: 1.2.7.0
+Version: 1.2.13.0
 
 Options:
  -i,--input <FILE>                        input gvcf list in a file.
@@ -67,12 +67,11 @@ Options:
 export LD_LIBRARY_PATH=/path_to_dpgt_dir/build/lib:${LD_LIBRARY_PATH}
 export LD_PRELOAD=/path_to_jemalloc_5.3.0/lib/libjemalloc.so
 spark-submit \
-    --conf "spark.dynamicAllocation.enabled=false" \
+    --conf spark.dynamicAllocation.enabled=false \
     --conf spark.memory.fraction=0.01 \
     --conf spark.memory.storageFraction=0.01 \
     --master local[32] \
     --driver-memory 140g --executor-cores 1 \
-    --conf spark.dynamicAllocation.enabled=false \
     --class org.bgi.flexlab.dpgt.jointcalling.JointCallingSpark \
     dpgt-<version>.jar \
     -i /path_to/vcfs.list \
