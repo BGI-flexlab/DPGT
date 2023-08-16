@@ -15,7 +15,7 @@ Get DGPT from github.
 ```sh
 git clone --recursive git@github.com:BGI-flexlab/DPGT.git
 # switch to the tag we need
-git checkout v1.2.13.0
+git checkout v1.2.14.0
 # update submodule, we need to do this because different version of DPGT may use different versions of submodules
 git submodule update --init
 ```
@@ -49,15 +49,16 @@ export LD_LIBRARY_PATH=/path_to_dpgt_dir/build/lib:${LD_LIBRARY_PATH}
 java -jar dpgt-<version>.jar -h
 
 DPGT: Distributed Population Genetics analysis Tools
-Version: 1.2.13.0
+Version: 1.2.14.0
 
 Options:
- -i,--input <FILE>                        input gvcf list in a file.
+ -i,--input <FILE>                        input gvcf list in a file, one gvcf file per line.
  -o,--output <DIR>                        output directory.
  -r,--reference <FILE>                    reference fasta file.
  -l,--target-regions <STRING>             target regions to process.
  -j,--jobs <INT>                          number of spark exculators. [10]
- -n,--num-combine-partitions <INT>        number of partitions for combining gvcfs. [10]
+ -n,--num-combine-partitions <INT>        number of partitions for combining gvcfs, default value is the square root of number of input gvcf files,
+                                          rounded down. [-1]
  -w,--window <INT>                        window size for each combine-genotype cycle. [300M]
  -d,--delete <Boolean>                    delete combine and genotype gvcf intermediate results. Possible values: true, false. [true]
  -s,--stand-call-conf <FLOAT>             the minimum phred-scaled confidence threshold at which variants should be called. [30.0]
@@ -93,7 +94,7 @@ spark-submit \
     dpgt-<version>.jar \
     -i /path_to/vcfs.list \
     -r hg38.fasta \
-    -o result -n 10 -j 32 -l chr1:1000000-2000000
+    -o result -j 32 -l chr1:1000000-2000000
 ```
 
 `--master local[32]` means run spark application using 32-threads.
@@ -119,6 +120,6 @@ spark-submit \
     dpgt-<version>.jar \
     -i /path_to/vcfs.list \
     -r hg38.fasta \
-    -o result -n 50 -j 256 -l chr1:1000000-2000000 
+    -o result -j 256 -l chr1:1000000-2000000 
 ```
 

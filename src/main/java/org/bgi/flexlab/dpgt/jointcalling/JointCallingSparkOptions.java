@@ -2,6 +2,11 @@ package org.bgi.flexlab.dpgt.jointcalling;
 import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeCalculationArgumentCollection;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.Serializable;
 import java.lang.Character;
 import java.nio.file.Paths;
@@ -33,7 +38,7 @@ public class JointCallingSparkOptions implements Serializable {
     private HelpFormatter helpFormatter = new HelpFormatter();
 
     // program meta data
-    private static final String VERSION = "1.2.13.0";
+    private static final String VERSION = "1.2.14.0";
 
     private ReferenceDataSource referenceDataSrc = null;
     private SAMSequenceDictionary sequenceDict = null;
@@ -48,7 +53,7 @@ public class JointCallingSparkOptions implements Serializable {
     public String dbsnp = null;             // dbsnp vcf file
 
     public int jobs = 10;                   // number of spark exculators
-    public int numCombinePartitions = 10;   // number of partitions for combining gvcfs.
+    public int numCombinePartitions = -1;   // number of partitions for combining gvcfs.
     private static final String WINDOW = "300M";
     public int window = kmgStringToInt(WINDOW);   // window size for each combine-genotype cycle
 
@@ -61,12 +66,12 @@ public class JointCallingSparkOptions implements Serializable {
     public boolean deleteIntermediateResults = true;
 
     public JointCallingSparkOptions() {
-        addOption("i", "input", true, "input gvcf list in a file.", true, "FILE");
+        addOption("i", "input", true, "input gvcf list in a file, one gvcf file per line.", true, "FILE");
         addOption("o", "output", true, "output directory.", true, "DIR");
         addOption("r", "reference", true, "reference fasta file.", true, "FILE");
         addOption("l", "target-regions", true, "target regions to process.", false, "STRING");
         addOption("j", "jobs", true, "number of spark exculators. [10]", false, "INT");
-        addOption("n", "num-combine-partitions", true, "number of partitions for combining gvcfs. [10]", false, "INT");
+        addOption("n", "num-combine-partitions", true, "number of partitions for combining gvcfs, default value is the square root of number of input gvcf files, rounded down. [-1]", false, "INT");
         addOption("w", "window", true, "window size for each combine-genotype cycle. [300M]", false, "INT");
         addOption("d", "delete", true, "delete combine and genotype gvcf intermediate results. Possible values: true, false. [true]", false, "Boolean");
         addOption("s", "stand-call-conf", true, "the minimum phred-scaled confidence threshold at which variants should be called. [30.0]", false, "FLOAT");
@@ -132,6 +137,43 @@ public class JointCallingSparkOptions implements Serializable {
         this.genotypeArguments.MAX_ALTERNATE_ALLELES = getOptionIntValue("max-alternate-alleles", this.genotypeArguments.MAX_ALTERNATE_ALLELES);
         this.genotypeArguments.samplePloidy = getOptionIntValue("ploidy", this.genotypeArguments.samplePloidy);
         this.uselocalMaster = getOptionFlagValue("local");
+        
+        // set this.numCombinePartitions to sqrt of number of input gvcf files
+        if (this.numCombinePartitions <= 0) {
+            try {
+                FileReader inputReader = new FileReader(new File(this.input));
+                BufferedReader bufferedReader = new BufferedReader(inputReader);
+                int n = 0;
+                try {
+                    while (bufferedReader.readLine() != null) {
+                        n += 1;
+                    }
+                } catch (IOException e) {
+                    logger.error("Failed to read line from input gvcf list file {}. {}", this.input, e.getMessage());
+                    System.exit(1);
+                }
+
+                if (n == 0) {
+                    logger.error("Input gvcf list file {} is empty", this.input);
+                    System.exit(1);
+                }
+
+                this.numCombinePartitions = (int)Math.floor(Math.sqrt(n));
+                if (this.numCombinePartitions <= 0) {
+                    this.numCombinePartitions = 1;
+                }
+                
+                try {
+                    bufferedReader.close();
+                } catch (IOException e) {
+                    logger.error("Failed to close input gvcf file stream. {}", e.getMessage());
+                    System.exit(1);
+                }
+            } catch (FileNotFoundException e) {
+                logger.error("Input gvcf list file {} was not found. {}", this.input, e.getMessage());
+                System.exit(1);
+            }
+        }
 
         this.referenceDataSrc = ReferenceDataSource.of(Paths.get(this.reference));
         this.sequenceDict = referenceDataSrc.getSequenceDictionary();
