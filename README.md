@@ -1,8 +1,13 @@
 # DPGT: A Distributed Population Genetics analysis Tool
 
-DPGT is a distributed population genetics analysis tool which enabled joint calling on millions  of WGS(whole genome sequencing) samples.
+DPGT is a distributed population genetics analysis tool which enabled joint calling on millions of WGS(whole genome sequencing) samples.
 
-## Getting started
+### Dependency
+
+- JDK 1.8
+- boost 1.74 or later
+- dependencies of [htslib](https://github.com/samtools/htslib), please read htslib's INSTALL guide to install them.
+- jemalloc
 
 ### Build
 
@@ -19,12 +24,17 @@ DPGT is implemented using C++ and java, first we need to compile C++ libraries u
 ```sh
 # in DPGT root directory
 mkdir build
-cd build && cmake -DCMAKE_PREFIX_PATH=/path/to/boost -DJAVA_INCLUDE_PATH=/path/to/jdk/include ../src/main/native/
+cd build && cmake -DCMAKE_PREFIX_PATH=/path/to/boost -DJAVA_INCLUDE_PATH=/path/to/jdk1.8/include ../src/main/native/
 make -j 8
 ```
 the compiled C++ libraries will be placed in `build/lib` directory.
 
-Compile DPGT jar package using maven.
+DPGT uses [htslib](https://github.com/samtools/htslib) as a submodule, please read htslib's INSTALL guide
+to install dependencies of it.
+
+DPGT requires JDK 1.8, we have not conducted detailed tests to determine whether it can run well under other versions of JDK.
+
+Build DPGT jar package using maven.
 ```sh
 # in DPGT root directory
 mvn package
@@ -34,6 +44,10 @@ the jar package will be placed in `target` directory.
 ### Usage
 
 ```
+# print help message
+export LD_LIBRARY_PATH=/path_to_dpgt_dir/build/lib:${LD_LIBRARY_PATH}
+java -jar dpgt-<version>.jar -h
+
 DPGT: Distributed Population Genetics analysis Tools
 Version: 1.2.13.0
 
@@ -60,8 +74,11 @@ Options:
  -V,--version                             show version.
 ```
 
+### Run DPGT
 
-### Run DPGT on a local computer
+DPGT uses [jemalloc](https://github.com/jemalloc/jemalloc) memory allocator for reducing memory fragmentation. Please read [INSTALL.md](https://github.com/jemalloc/jemalloc/blob/dev/INSTALL.md) to install jemalloc.
+
+**On a local computer**
 
 ```sh
 export LD_LIBRARY_PATH=/path_to_dpgt_dir/build/lib:${LD_LIBRARY_PATH}
@@ -76,13 +93,13 @@ spark-submit \
     dpgt-<version>.jar \
     -i /path_to/vcfs.list \
     -r hg38.fasta \
-    -o result -n 256 -j 32 -l chr1:1000000-2000000
+    -o result -n 10 -j 32 -l chr1:1000000-2000000
 ```
 
 `--master local[32]` means run spark application using 32-threads.
 
 
-### Run DPGT on a yarn cluster
+**On a yarn cluster**
 
 ```sh
 export LD_LIBRARY_PATH=/path_to_dpgt_dir/build/lib:${LD_LIBRARY_PATH}
