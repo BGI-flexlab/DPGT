@@ -3,6 +3,9 @@ package org.bgi.flexlab.dpgt.jointcalling;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.BitSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,6 +103,45 @@ public class GVCFsSyncGenotyperJob extends DPGTJobAsync<List<String>, List<Strin
         this.jobState.outPutFiles.put(0, genotypeGVCFsList);
         this.jobState.jobState = DPGTJobState.State.SUCCESS;
 
+        if (jcOptions.deleteIntermediateResults) deleteFilesInRemoveList();
+        writeStateFile();
+        
+        return genotypeGVCFsList;
+    }
+
+    public List<String> get(long timeout, TimeUnit unit) {
+        if (isSuccess()) {
+            return load();
+        }
+
+        if (this.futures == null) {
+            logger.error("Should run submit before get!");
+            System.exit(1);
+        }
+        
+        ArrayList<String> genotypeGVCFsList = new ArrayList<>();
+        for (int j = 0; j < this.futures.size(); ++j) {
+            List<String> genotypeGVCF = null;
+            try {
+                genotypeGVCF = this.futures.get(j).get(timeout, unit);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                if (TimeoutException.class.isInstance(e)) {
+                    // time out
+                    return null;
+                } else {
+                    logger.error("Failed to get genotyped gvcfs for interval: {}, {}", subIntervals.get(j), e.getMessage());
+                    System.exit(1);
+                }
+            }
+            if (genotypeGVCF != null) {
+                genotypeGVCFsList.addAll(genotypeGVCF);
+            }
+        }
+
+        this.jobState.outPutFiles.put(0, genotypeGVCFsList);
+        this.jobState.jobState = DPGTJobState.State.SUCCESS;
+
+        if (jcOptions.deleteIntermediateResults) deleteFilesInRemoveList();
         writeStateFile();
         
         return genotypeGVCFsList;
@@ -107,5 +149,9 @@ public class GVCFsSyncGenotyperJob extends DPGTJobAsync<List<String>, List<Strin
 
     public List<String> load() {
         return this.jobState.outPutFiles.get(0);
+    }
+
+    public int getIndex() {
+        return this.idx;
     }
 }

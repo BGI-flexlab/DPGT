@@ -38,7 +38,7 @@ public class JointCallingSparkOptions implements Serializable {
     private HelpFormatter helpFormatter = new HelpFormatter();
 
     // program meta data
-    private static final String VERSION = "1.2.14.0";
+    private static final String VERSION = "1.2.14.0-rv";
 
     private ReferenceDataSource referenceDataSrc = null;
     private SAMSequenceDictionary sequenceDict = null;
@@ -48,6 +48,7 @@ public class JointCallingSparkOptions implements Serializable {
     public String input = null;             // input gvcf list in a file
     public String output = null;            // output directory
     public String outputPath = null;        // output vcf file name
+    public String outputPrefix = null;      // output vcf file prefix
     public String reference = null;         // reference fasta file name
     public String[] targetRegionStrs = null;
     public String dbsnp = null;             // dbsnp vcf file
@@ -186,6 +187,7 @@ public class JointCallingSparkOptions implements Serializable {
         }
 
         this.outputPath = Paths.get(output, JointCallingSparkConsts.OUTPUT_NAME).toString();
+        this.outputPrefix = Paths.get(output, JointCallingSparkConsts.OUTPUT_PREFIX).toString();
     }
 
     private void addOption(final String opt, final String longOpt, final boolean hasArg, final String description, final boolean isRequired, final String argName) {
@@ -267,6 +269,10 @@ public class JointCallingSparkOptions implements Serializable {
 
     public String getOutputVCFPath() {
         return outputPath;
+    }
+
+    public String getOutputPrefix() {
+        return outputPrefix;
     }
 
     protected String[] getOptionValues(String opt, String[] defaultValue) {

@@ -2,8 +2,12 @@ package org.bgi.flexlab.dpgt.jointcalling;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.nio.file.Paths;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +34,7 @@ public class ConcatGenotypeGVCFsJob extends DPGTJobAsync<List<String>, Integer> 
         this.sc = sc;
         this.genotypeGVCFsList = genotypeGVCFsList;
         this.genotypeHeader = genotypeHeader;
-        File outputFile = new File(this.jcOptions.getOutputVCFPath());
+        File outputFile = new File(this.jcOptions.outputPrefix + "." + Integer.toString(idx) + "." + JointCallingSparkConsts.OUTPUT_SUFFIX);
         this.outputPath = outputFile.getAbsolutePath();
         this.idx = idx;
         this.stateFile = getStateFilePath();
@@ -110,7 +114,58 @@ public class ConcatGenotypeGVCFsJob extends DPGTJobAsync<List<String>, Integer> 
 
         this.jobState.jobState = DPGTJobState.State.SUCCESS;
 
+        if (jcOptions.deleteIntermediateResults) deleteFilesInRemoveList();
         writeStateFile();
+
+        return 0;
+    }
+
+    public Integer get(long timeout, TimeUnit unit) {
+        if (isSuccess()) {
+            return load();
+        }
+
+        if (this.futures == null) {
+            logger.error("Should run submit before get!");
+            System.exit(1);
+        }
+
+        for (int i = 0; i < this.futures.size(); ++i) {
+            try {
+                this.futures.get(i).get(timeout, unit);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                if (TimeoutException.class.isInstance(e)) {
+                    return null;
+                } else {
+                    logger.error("Failed to get concatenate vcf, {}", e.getMessage());
+                    System.exit(1);
+                }
+            }
+        }
+
+        // create an empty flag file
+        File jobSuccessFlag = new File(String.format("%s.%s_%d", outputPath, JointCallingSparkConsts.JOB_SUCCESS_FLAG, this.idx));
+        try {
+            FileOutputStream jobSuccessFlagStream = new FileOutputStream(jobSuccessFlag);
+            jobSuccessFlagStream.close();
+        } catch (Exception e) {
+            logger.error("Failed to get concatenate vcf, {}", e.getMessage());
+            System.exit(1);
+        }
+
+        ArrayList<String> outPutFiles = new ArrayList<>();
+        outPutFiles.add(outputPath);
+        outPutFiles.add(jobSuccessFlag.getAbsolutePath());
+        this.jobState.outPutFiles.put(0, outPutFiles);
+
+        File outputFile = new File(outputPath);
+        this.jobState.metaData.put(JointCallingSparkConsts.RESULT_VCF_FILE_SIZE_KEY, String.valueOf(outputFile.length()));
+
+        this.jobState.jobState = DPGTJobState.State.SUCCESS;
+
+        if (jcOptions.deleteIntermediateResults) deleteFilesInRemoveList();
+        writeStateFile();
+
         return 0;
     }
 
