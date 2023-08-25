@@ -10,7 +10,6 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -91,6 +90,13 @@ public class JointCallingSpark {
             logger.info("Cycle {}", cycleStr);
             logger.info("Processing interval: {} ({})", interval.toString(), cycleStr);
 
+            ConcatGenotypeGVCFsJob concatVcfJob0 = new ConcatGenotypeGVCFsJob(jcOptions, i);
+            if (concatVcfJob0.isSuccess()) {
+                logger.info("skip, because genotyping gvcfs results were written to output file for interval: {} ({})",
+                    interval.toString(), cycleStr);
+                continue;
+            }
+
             GVCFsSyncGenotyperJob genotyperJob0 = new GVCFsSyncGenotyperJob(jcOptions, i);
             if (genotyperJob0.isSuccess()) {
                 allGenotyperJobs.put(i, genotyperJob0);
@@ -102,7 +108,7 @@ public class JointCallingSpark {
             logger.info("Finding variant sites in {} ({})", interval.toString(), cycleStr);
             VariantFinderJob variantFinderJob = new VariantFinderJob(vcfpathsRDDPartitionByJobs, jcOptions, sc, i, interval);
             BitSet variantSiteSetData = variantFinderJob.run();
-            updateGenotypeAndConcatVcfJobs(allGenotyperJobs, allConcatVcfJobs, jcOptions, genotypeHeader, sc, JointCallingSparkConsts.GET_FUTURE_TIMEOUT);
+            updateGenotypeAndConcatVcfJobs(allGenotyperJobs, allConcatVcfJobs, intervalsToTravers, jcOptions, genotypeHeader, sc, JointCallingSparkConsts.GET_FUTURE_TIMEOUT);
             
             if (variantSiteSetData == null || variantSiteSetData.isEmpty()) {
                 logger.info("skip interval: {}, because there is no variant site in it ({})", interval.toString(), cycleStr);
@@ -113,6 +119,7 @@ public class JointCallingSpark {
             CombineGVCFsOnSiteJob combineGVCFsOnSiteJob = new CombineGVCFsOnSiteJob(
                 vcfpathsRDDPartitionByCombineParts, jcOptions, sc, i, interval, PARTITION_COEFFICIENT, variantSiteSetData);
             combineGVCFsOnSiteJob.run();
+            updateGenotypeAndConcatVcfJobs(allGenotyperJobs, allConcatVcfJobs, intervalsToTravers, jcOptions, genotypeHeader, sc, JointCallingSparkConsts.GET_FUTURE_TIMEOUT);
 
             logger.info("Genotyping gvcfs in {} ({})", interval.toString(), cycleStr);
             GVCFsSyncGenotyperJob genotyperJob = new GVCFsSyncGenotyperJob(jcOptions, sc, i,
@@ -122,10 +129,10 @@ public class JointCallingSpark {
             genotyperJob.submit();
             allGenotyperJobs.put(i, genotyperJob);
 
-            updateGenotypeAndConcatVcfJobs(allGenotyperJobs, allConcatVcfJobs, jcOptions, genotypeHeader, sc, JointCallingSparkConsts.GET_FUTURE_TIMEOUT);
+            updateGenotypeAndConcatVcfJobs(allGenotyperJobs, allConcatVcfJobs, intervalsToTravers, jcOptions, genotypeHeader, sc, JointCallingSparkConsts.GET_FUTURE_TIMEOUT);
         }
 
-        updateGenotypeAndConcatVcfJobs(allGenotyperJobs, allConcatVcfJobs, jcOptions, genotypeHeader, sc, 0);
+        updateGenotypeAndConcatVcfJobs(allGenotyperJobs, allConcatVcfJobs, intervalsToTravers, jcOptions, genotypeHeader, sc, 0);
 
         for (Integer k: allConcatVcfJobs.keySet()) {
             ConcatGenotypeGVCFsJob concatGenotypeGVCFsJob = allConcatVcfJobs.get(k);
@@ -145,8 +152,8 @@ public class JointCallingSpark {
 
 
     private static void updateGenotypeAndConcatVcfJobs(TreeMap<Integer, GVCFsSyncGenotyperJob> allGenotyperJobs,
-        TreeMap<Integer, ConcatGenotypeGVCFsJob> allConcatVcfJobs, JointCallingSparkOptions jcOptions,
-        String genotypeHeader, JavaSparkContext sc, long timeout)
+        TreeMap<Integer, ConcatGenotypeGVCFsJob> allConcatVcfJobs, List<SimpleInterval> intervalsToTravers,
+        JointCallingSparkOptions jcOptions, String genotypeHeader, JavaSparkContext sc, long timeout)
     {
         for (Integer k: allGenotyperJobs.keySet()) {
             GVCFsSyncGenotyperJob gtJob = allGenotyperJobs.get(k);
@@ -160,7 +167,7 @@ public class JointCallingSpark {
                 if (gtList != null) {
                     if (allConcatVcfJobs.get(k) == null) {
                         ConcatGenotypeGVCFsJob concatGenotypeGVCFsJob = new ConcatGenotypeGVCFsJob(
-                            jcOptions, sc, gtList, genotypeHeader, k);
+                            jcOptions, sc, gtList, genotypeHeader, k, intervalsToTravers.get(k));
                         concatGenotypeGVCFsJob.addToRemoveList(gtJob.genotypeDir);
                         concatGenotypeGVCFsJob.submit();
                         allConcatVcfJobs.put(k, concatGenotypeGVCFsJob);

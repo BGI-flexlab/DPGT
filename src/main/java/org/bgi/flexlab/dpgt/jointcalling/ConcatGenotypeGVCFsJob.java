@@ -7,12 +7,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.nio.file.Paths;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.bgi.flexlab.dpgt.utils.DPGTJobAsync;
 import org.bgi.flexlab.dpgt.utils.DPGTJobState;
+import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.apache.spark.api.java.JavaFutureAction;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -25,18 +25,22 @@ public class ConcatGenotypeGVCFsJob extends DPGTJobAsync<List<String>, Integer> 
     private JavaSparkContext sc;
     private List<String> genotypeGVCFsList;
     private String genotypeHeader;
-    private String outputPath;
     private int idx;
+    private SimpleInterval interval;
+    private String outputPath;
     public ConcatGenotypeGVCFsJob(final JointCallingSparkOptions jcOptions, final JavaSparkContext sc,
-        final List<String> genotypeGVCFsList, final String genotypeHeader, int idx)
+        final List<String> genotypeGVCFsList, final String genotypeHeader, int idx, SimpleInterval interval)
     {
         this.jcOptions = jcOptions;
         this.sc = sc;
         this.genotypeGVCFsList = genotypeGVCFsList;
         this.genotypeHeader = genotypeHeader;
-        File outputFile = new File(this.jcOptions.outputPrefix + "." + Integer.toString(idx) + "." + JointCallingSparkConsts.OUTPUT_SUFFIX);
-        this.outputPath = outputFile.getAbsolutePath();
         this.idx = idx;
+        this.interval = interval;
+        String outputFileName = String.format("%s.%s.%d.%s", this.jcOptions.outputPrefix,
+            getSimpleIntervalString(), this.idx, JointCallingSparkConsts.OUTPUT_SUFFIX);
+        File outputFile = new File(outputFileName);
+        this.outputPath = outputFile.getAbsolutePath();
         this.stateFile = getStateFilePath();
     }
 
@@ -178,34 +182,22 @@ public class ConcatGenotypeGVCFsJob extends DPGTJobAsync<List<String>, Integer> 
      * @return
      */
     private long getOutputFileSizeBefore() {
-        if (this.idx == 0) {
-            return 0;
-        } else {
-            String preStateFile = String.format("%s/%s/%s.%d.json",
-                this.jcOptions.output, JointCallingSparkConsts.JOB_STATE,
-                JointCallingSparkConsts.CONCAT_GENOTYPE_STATE_FILE_PREFIX, this.idx-1);
-            DPGTJobState preJobState = readStateFile(preStateFile);
-            String fileSizeStr = preJobState.metaData.get(JointCallingSparkConsts.RESULT_VCF_FILE_SIZE_KEY);
-            if (fileSizeStr == null) {
-                logger.error("key {} not in state file {} metadata", JointCallingSparkConsts.RESULT_VCF_FILE_SIZE_KEY, preStateFile);
-                System.exit(1);
-            }
-            long fileSize = 0;
-            try {
-                fileSize = Long.parseLong(fileSizeStr);
-                return fileSize;
-            } catch (NumberFormatException e) {
-                logger.error("{} state file metadata key {} not have a string value that can be convert to long",
-                    JointCallingSparkConsts.RESULT_VCF_FILE_SIZE_KEY, preStateFile);
-                System.exit(1);
-            }
-            return fileSize;
-        }
+        return 0;
     }
 
     private String getStateFilePath() {
         return String.format("%s/%s/%s.%d.json",
             this.jcOptions.output, JointCallingSparkConsts.JOB_STATE,
             JointCallingSparkConsts.CONCAT_GENOTYPE_STATE_FILE_PREFIX, this.idx);
+    }
+
+    private String getSimpleIntervalString() {
+        int seqLen = jcOptions.getSequenceDict().getSequence(this.interval.getContig()).getSequenceLength();
+        // if interval covers the whole chromosome, return the contig name
+        if (this.interval.getStart() == 1 && this.interval.getEnd() == seqLen) {
+            return this.interval.getContig();
+        } else {
+            return String.format("%s_%d_%d", interval.getContig(), interval.getStart(), interval.getEnd());
+        }
     }
 }

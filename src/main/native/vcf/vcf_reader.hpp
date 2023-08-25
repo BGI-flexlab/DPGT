@@ -17,6 +17,13 @@
 #include "vcf/vcf_id_table.hpp"
 
 
+enum class VcfReaderQueryStatus: uint8_t {
+    NOT,
+    SUCCESS,
+    FAIL
+};
+
+
 /**
  * A htslib based vcf reader for reading vcf, bgzip vcf and bcf samenessly.
  */
@@ -87,6 +94,8 @@ private:
     const std::vector<SimpleInterval> *intervals_ = nullptr; // target intervals
     std::vector<SimpleInterval>::const_iterator intervals_iter_;
     VcfIdTables id_tables_;
+
+    VcfReaderQueryStatus query_status_ = VcfReaderQueryStatus::NOT;
 
     std::string getFileName() {
         if (file_ptr_ != nullptr) {

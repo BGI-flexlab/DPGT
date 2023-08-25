@@ -136,6 +136,8 @@ void VcfReader::Open(const std::string &file_name, bool require_index) {
 
 
 VcfReader &VcfReader::Queryi(int32_t tid, int64_t start, int64_t end) {
+    query_status_ = VcfReaderQueryStatus::NOT;
+
     if (!file_ptr_) {
         std::cerr << "[VcfReader::Queryi] Error! Can not query on reader "
             << "not opened." << std::endl;
@@ -174,14 +176,22 @@ VcfReader &VcfReader::Queryi(int32_t tid, int64_t start, int64_t end) {
             tid = tbx_name2id(tbx_idx_, name);
             if (tid < 0) {
                 itr_ = nullptr;
+            } else {
+                itr_ = tbx_itr_queryi(tbx_idx_, tid, start, end+1);
             }
-            itr_ = tbx_itr_queryi(tbx_idx_, tid, start, end+1);
         }
     }
     else
     {
         itr_ = bcf_itr_queryi(bcf_idx_, tid, start, end+1);
     }
+
+    if (itr_) {
+        query_status_ = VcfReaderQueryStatus::SUCCESS;
+    } else {
+        query_status_ = VcfReaderQueryStatus::FAIL;
+    }
+
     return *this;
 }
 
@@ -259,7 +269,7 @@ bcf1_t *VcfReader::Read(bcf1_t *record) {
     }
 
     int ret;
-    if (streaming_ || itr_ == nullptr) {
+    if (streaming_ || query_status_ == VcfReaderQueryStatus::NOT) {
         if ( file_ptr_->format.format==vcf )
         {
             if ( (ret=hts_getline(file_ptr_, KS_SEP_LINE, &tmps_)) < 0 )
@@ -288,6 +298,10 @@ bcf1_t *VcfReader::Read(bcf1_t *record) {
         }
     } else if ( tbx_idx_ )  // bgzip vcf file
     {
+        if (query_status_ == VcfReaderQueryStatus::FAIL) {
+            // Queryi has been called, but failed, return nullptr
+            return nullptr;
+        }
         while ((ret=tbx_itr_next(file_ptr_, tbx_idx_, itr_, &tmps_)) < 0) {
             if (intervals_ != nullptr && intervals_iter_ != intervals_->end()) {
                 const SimpleInterval &interval = *intervals_iter_;
@@ -304,6 +318,10 @@ bcf1_t *VcfReader::Read(bcf1_t *record) {
             std::exit(1);
         }
     } else {  // bcf file
+        if (query_status_ == VcfReaderQueryStatus::FAIL) {
+            // Queryi has been called, but failed, return nullptr
+            return nullptr;
+        }
         while ((ret = bcf_itr_next(file_ptr_, itr_, record)) < 0) {
             if ( ret < -1 ) {
                 std::cerr << "[VcfReader::Read] Error! Failed to parse bcf line"

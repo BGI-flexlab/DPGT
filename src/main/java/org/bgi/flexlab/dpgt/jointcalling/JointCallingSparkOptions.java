@@ -267,6 +267,10 @@ public class JointCallingSparkOptions implements Serializable {
         return result;
     }
 
+    public SAMSequenceDictionary getSequenceDict() {
+        return this.sequenceDict;
+    }
+
     public String getOutputVCFPath() {
         return outputPath;
     }

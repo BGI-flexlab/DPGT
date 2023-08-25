@@ -253,3 +253,18 @@ target_link_libraries(cdpgt
 #     ${Boost_LIBRARIES}
 #     z m bz2 lzma pthread curl ssl crypto)
 
+
+# add_executable(test_find_vs
+#     test/test_find_variant_sites.cpp
+#     common/fastx_seq.cpp
+#     common/fastx_suffix.cpp
+#     common/sequence_dictionary.cpp
+#     common/simple_interval.cpp
+#     vcf/vcf_reader.cpp
+#     variant_site_finder/variant_site_finder.cpp)
+
+# target_link_libraries(test_find_vs
+#     ${HTSLIB_LIB}
+#     ${LIBDEFLATE_LIB}
+#     ${Boost_LIBRARIES}
+#     z m bz2 lzma pthread curl ssl crypto)
