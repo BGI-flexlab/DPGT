@@ -57,6 +57,7 @@ public class JointCallingSparkOptions implements Serializable {
     public int numCombinePartitions = -1;   // number of partitions for combining gvcfs.
     private static final String WINDOW = "300M";
     public int window = kmgStringToInt(WINDOW);   // window size for each combine-genotype cycle
+    public int minVariantSites = 1;
 
     // genotype arguments
     public GenotypeCalculationArgumentCollection genotypeArguments = new GenotypeCalculationArgumentCollection();
@@ -76,6 +77,7 @@ public class JointCallingSparkOptions implements Serializable {
         addOption("w", "window", true, "window size for each combine-genotype cycle. [300M]", false, "INT");
         addOption("d", "delete", true, "delete combine and genotype gvcf intermediate results. Possible values: true, false. [true]", false, "Boolean");
         addOption("s", "stand-call-conf", true, "the minimum phred-scaled confidence threshold at which variants should be called. [30.0]", false, "FLOAT");
+        addOption(null, "min-variant-sites", true, "minimum number of variant sites of small partion of region. [1]", false, "INT");
         addOption(null, "dbsnp", true, "dbsnp vcf file for annotation.", false, "FILE");
         addOption(null, "use-old-qual-calculator", true, "use the old AF model. Possible values: true, false. [true]", false, "Boolean");
         addOption(null,"heterozygosity", true, "heterozygosity value used to compute prior likelihoods for any locus. [0.001]", false, "FLOAT");
@@ -128,6 +130,7 @@ public class JointCallingSparkOptions implements Serializable {
         this.jobs = getOptionIntValue("j", this.jobs);
         this.numCombinePartitions = getOptionIntValue("n", this.numCombinePartitions);
         this.window = kmgStringToInt(getOptionValue("w", WINDOW));
+        this.minVariantSites = getOptionIntValue("min-variant-sites", this.minVariantSites);
         this.dbsnp = getOptionValue("dbsnp", this.dbsnp);
         this.deleteIntermediateResults = getOptionBooleanValue("d", this.deleteIntermediateResults);
         this.genotypeArguments.STANDARD_CONFIDENCE_FOR_CALLING = getOptionDoubleValue("s", this.genotypeArguments.STANDARD_CONFIDENCE_FOR_CALLING);

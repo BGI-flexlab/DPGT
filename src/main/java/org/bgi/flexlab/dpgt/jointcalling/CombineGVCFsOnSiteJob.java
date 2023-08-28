@@ -50,7 +50,7 @@ public class CombineGVCFsOnSiteJob extends DPGTJob<Integer> {
     public Integer work() {
         this.subIntervals = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(interval,
             Math.max((int)Math.ceil(partitionCoeff*1.0*jcOptions.jobs/jcOptions.numCombinePartitions), 1),
-            variantSiteSetData);
+            jcOptions.minVariantSites, variantSiteSetData);
         this.subVariantBitSets = VariantSiteSetUtils.getSubBitSets(variantSiteSetData, interval, subIntervals);
         ArrayList<Broadcast<byte[]>> subVariantBitSetsBcs = new ArrayList<>();
         for (BitSet b: subVariantBitSets)
@@ -92,7 +92,7 @@ public class CombineGVCFsOnSiteJob extends DPGTJob<Integer> {
     public Integer load() {
         this.subIntervals = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(interval,
             Math.max((int)Math.ceil(partitionCoeff*1.0*jcOptions.jobs/jcOptions.numCombinePartitions), 1),
-            variantSiteSetData);
+            jcOptions.minVariantSites, variantSiteSetData);
         this.subVariantBitSets = VariantSiteSetUtils.getSubBitSets(variantSiteSetData, interval, subIntervals);
         this.combinedGVCFsList = new ArrayList<>();
         for (final List<String> value: this.jobState.outPutFiles.values()) {

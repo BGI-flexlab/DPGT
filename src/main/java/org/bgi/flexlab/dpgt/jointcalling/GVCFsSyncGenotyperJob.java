@@ -69,7 +69,7 @@ public class GVCFsSyncGenotyperJob extends DPGTJobAsync<List<String>, List<Strin
         this.futures = new ArrayList<>();
         for (int j = 0; j < subIntervals.size(); ++j) {
             ArrayList<SimpleInterval> windows = SimpleIntervalUtils.splitIntervalByPartitionsAndBitSet(
-                subIntervals.get(j), genotypePartitions, subVariantBitSets.get(j));
+                subIntervals.get(j), genotypePartitions, jcOptions.minVariantSites, subVariantBitSets.get(j));
             JavaRDD<SimpleInterval> windowsRDD = sc.parallelize(windows, windows.size());
             JavaFutureAction<List<String>> genotypeGVCFsFuture = windowsRDD
                 .mapPartitionsWithIndex(new GVCFsSyncGenotyperSparkFunc(jcOptions.reference, combinedGVCFsList.get(j),

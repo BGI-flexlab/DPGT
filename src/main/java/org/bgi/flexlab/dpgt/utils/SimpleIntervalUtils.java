@@ -58,12 +58,13 @@ public class SimpleIntervalUtils {
      * been setted
      * @param largeInterval large interval(window) to be splitted
      * @param partitions number of partitions
+     * @param minVariantSites minimum number of variant sites of the small window.
      * @param bitSet bit set
      * @return small windows
      */
-    public static ArrayList<SimpleInterval> splitIntervalByPartitionsAndBitSet(final SimpleInterval largeInterval, int partitions, final BitSet bitSet) {
+    public static ArrayList<SimpleInterval> splitIntervalByPartitionsAndBitSet(final SimpleInterval largeInterval, int partitions, int minVariantSites, final BitSet bitSet) {
         int totalCount = bitSet.cardinality();
-        int count = Math.max((int)Math.floor((totalCount / (0.98*partitions))), 1);
+        int count = Math.max((int)Math.floor((totalCount / (0.98*partitions))), minVariantSites);
         int n = 0;
         int s = bitSet.nextSetBit(0);
         int e = 0;
