@@ -15,7 +15,7 @@ Get DGPT from github.
 ```sh
 git clone --recursive git@github.com:BGI-flexlab/DPGT.git
 # switch to the tag we need
-git checkout v1.2.14.0
+git checkout v1.3.1.0
 # update submodule, we need to do this because different version of DPGT may use different versions of submodules
 git submodule update --init
 ```
@@ -49,7 +49,7 @@ export LD_LIBRARY_PATH=/path_to_dpgt_dir/build/lib:${LD_LIBRARY_PATH}
 java -jar dpgt-<version>.jar -h
 
 DPGT: Distributed Population Genetics analysis Tools
-Version: 1.2.14.0
+Version: 1.3.1.0
 
 Options:
  -i,--input <FILE>                        input gvcf list in a file, one gvcf file per line.
@@ -62,6 +62,7 @@ Options:
  -w,--window <INT>                        window size for each combine-genotype cycle. [300M]
  -d,--delete <Boolean>                    delete combine and genotype gvcf intermediate results. Possible values: true, false. [true]
  -s,--stand-call-conf <FLOAT>             the minimum phred-scaled confidence threshold at which variants should be called. [30.0]
+    --min-variant-sites <INT>             minimum number of variant sites of small partion of region. [1]
     --dbsnp <FILE>                        dbsnp vcf file for annotation.
     --use-old-qual-calculator <Boolean>   use the old AF model. Possible values: true, false. [true]
     --heterozygosity <FLOAT>              heterozygosity value used to compute prior likelihoods for any locus. [0.001]
