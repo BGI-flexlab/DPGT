@@ -29,7 +29,6 @@ struct VcfSharedAttributeConstants {
 };
 
 
-
 /**
     * @brief check if attribute key is match AS_*RankSum
     */

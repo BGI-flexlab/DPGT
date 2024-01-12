@@ -5,6 +5,7 @@
 #include "vcf/allele.hpp"
 #include "vcf/vcf_attribute.hpp"
 #include "vcf/vcf_shared_attribute.hpp"
+#include "gatk_vcf_constants.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -117,7 +118,7 @@ const std::vector<FlatGenotype *> &VariantContext::getFlatGenotypes()
     return flat_genotypes_;
 }
 
-const std::map<std::string, VcfAttributeBase *> &
+std::map<std::string, VcfAttributeBase *> &
 VariantContext::getSharedAttributes()
 {
     if (!shared_attributes_.empty()) return shared_attributes_;
@@ -153,6 +154,46 @@ std::vector<Allele> VariantContext::createAlleles() const {
         alleles[i] = Allele::create(variant_->d.allele[i], false);
     }
     return alleles;
+}
+
+
+int32_t VariantContext::calculateDepth() {
+    const std::map<std::string, VcfAttributeBase *> &shared_attributes =
+        getSharedAttributes();
+    auto itr = shared_attributes.find(VCFConstants::DEPTH_KEY);
+
+    // get DP from INFO
+    if (itr != shared_attributes.end()) {
+        if (itr->second->type() != BCF_HT_INT) {
+            std::cerr << "[ReferenceConfidentVariantMerger::calculateVCDepth] "
+                << "Error! DP field of vcf INFO must have an Integer value."
+                << std::endl;
+            return 0;
+        }
+        VcfAttribute<int32_t> *dp = dynamic_cast<VcfAttribute<int32_t> *>(
+            itr->second);
+        if (dp->value()[0] > 0) {
+            return dp->value()[0];
+        }
+    }
+
+    // can not get MIN_DP/DP from INFO, so calculate it from genotypes of each sample
+    int dp = 0;
+    std::vector<FlatGenotype *> genotypes = getFlatGenotypes();
+    for (auto &g: genotypes) {
+        VcfAttribute<int32_t> *min_dp = g->getMIN_DP();
+        if (min_dp) {
+            dp += min_dp->value()[0];
+        } else if (g->hasDP() && g->getDP()->value()[0] > 0) {
+            dp += g->getDP()->value()[0];
+        } else if (g->hasAD()) {
+            for (int i = 0; i < g->getAD()->size(); ++i) {
+                if (g->getAD()->value()[i] > 0) dp += g->getAD()->value()[i];
+            }
+        }
+    }
+
+    return dp;
 }
 
 

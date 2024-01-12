@@ -457,48 +457,55 @@ int ReferenceConfidentVariantMerger::calculateBetterDupAlleleIndex(
 }
 
 
-
 int ReferenceConfidentVariantMerger::calculateVCDepth(
     std::shared_ptr<VariantContext> &vc)
 {
-    const std::map<std::string, VcfAttributeBase *> &shared_attributes =
-        vc->getSharedAttributes();
-    auto itr = shared_attributes.find(VCFConstants::DEPTH_KEY);
-
-    // get DP from INFO
-    if (itr != shared_attributes.end()) {
-        if (itr->second->type() != BCF_HT_INT) {
-            std::cerr << "[ReferenceConfidentVariantMerger::calculateVCDepth] "
-                << "Error! DP field of vcf INFO must have an Integer value."
-                << std::endl;
-            return 0;
-        }
-        VcfAttribute<int32_t> *dp = dynamic_cast<VcfAttribute<int32_t> *>(
-            itr->second);
-        if (dp->value()[0] > 0) {
-            return dp->value()[0];
-        }
-    }
-
-    // can not get MIN_DP/DP from INFO, so calculate it from genotypes of each sample
-    int dp = 0;
-    std::vector<FlatGenotype *> genotypes = vc->getFlatGenotypes();
-    for (auto &g: genotypes) {
-        VcfAttribute<int32_t> *min_dp = g->getMIN_DP();
-        if (min_dp) {
-            dp += min_dp->value()[0];
-        } else if (g->hasDP() && g->getDP()->value()[0] > 0) {
-            dp += g->getDP()->value()[0];
-        } else if (g->hasAD()) {
-            for (int i = 0; i < g->getAD()->size(); ++i) {
-                if (g->getAD()->value()[i] > 0) dp += g->getAD()->value()[i];
-            }
-        }
-    }
-
-    return dp;
+    return vc->getDepth();
 }
 
+/**
+ * @brief Add RAW_MQandDP attribute to the input attributes, if RAW_MQandDP is not
+ * present but RAW_MQ is present.
+ */
+static void addRAW_MQandDPAttribute(std::shared_ptr<VariantContext> vc,
+    std::map<std::string, VcfAttributeBase *> &shared_attributes)
+{   
+    auto raw_mq_and_dp_it = shared_attributes.find(GATKVCFConstants::RAW_MAPPING_QUALITY_WITH_DEPTH_KEY);
+    auto raw_mq_it = shared_attributes.find(GATKVCFConstants::RAW_RMS_MAPPING_QUALITY_DEPRECATED);
+    // INFO not has RAW_MQandDP but has DEPRECATED RAW_MQ
+    if (raw_mq_and_dp_it == shared_attributes.end() &&
+        raw_mq_it != shared_attributes.end())
+    {
+        VcfAttributeBase *raw_mq_attribute = raw_mq_it->second;
+        int32_t *raw_mq_dp_data = (int32_t *)malloc(2*sizeof(int32_t));
+        if (raw_mq_attribute->type() == BCF_HT_REAL)
+        {
+            VcfSharedAttribute<float> *raw_mq_attribute_cast =
+                dynamic_cast<VcfSharedAttribute<float> *>(raw_mq_attribute);
+            raw_mq_dp_data[0] = (int32_t)(*raw_mq_attribute_cast)[0];
+        } else if (raw_mq_attribute->type() == BCF_HT_INT) {
+            VcfSharedAttribute<int32_t> *raw_mq_attribute_cast =
+                dynamic_cast<VcfSharedAttribute<int32_t> *>(raw_mq_attribute);
+            raw_mq_dp_data[0] = (int32_t)(*raw_mq_attribute_cast)[0];
+        } else {
+            free(raw_mq_dp_data);
+            std::cerr << "[addRAW_MQandDPAttribute] Error! Invalid value type for"
+                << " INFO/RAW_MQ, expected a numeric value." << std::endl;
+            std::exit(1);
+        }
+        
+        // add RAW_MQandDP attribute
+        raw_mq_dp_data[1] = vc->getDepth();
+        shared_attributes[GATKVCFConstants::RAW_MAPPING_QUALITY_WITH_DEPTH_KEY] =
+            new VcfSharedAttribute<int32_t>(
+                GATKVCFConstants::RAW_MAPPING_QUALITY_WITH_DEPTH_KEY, BCF_HT_INT,
+                2, BCF_VL_FIXED, raw_mq_dp_data);
+        
+        // drop RAW_MQ attribute
+        delete raw_mq_it->second;
+        shared_attributes.erase(raw_mq_it);
+    }
+}
 
 std::map<std::string, std::vector<VcfAttributeBase *>>
 ReferenceConfidentVariantMerger::getSharedAttributesOfVCs(
@@ -510,8 +517,9 @@ ReferenceConfidentVariantMerger::getSharedAttributesOfVCs(
         std::shared_ptr<VariantContext> &vc = vcs[i];
         // not add span-event attributes for merge
         if (vc->getStart() != loc.start) continue;
-        const std::map<std::string, VcfAttributeBase *> &attributes =
+        std::map<std::string, VcfAttributeBase *> &attributes =
             vc->getSharedAttributes();
+        addRAW_MQandDPAttribute(vc, attributes);
         for (auto &a: attributes) {
             auto itr = result.find(a.first);
             if (itr == result.end()) {
@@ -552,7 +560,7 @@ ReferenceConfidentVariantMerger::mergeSharedAttributes(
         } else {
             // merge other attributes by calculate median of attributes values
             VcfAttributeBase *first = nullptr;
-            int16_t value_type;
+            int16_t value_type = -1;
             for (auto a: it.second) {
                 if (a != nullptr)
                 {

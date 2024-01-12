@@ -184,3 +184,6 @@ const std::string GATKVCFConstants::PSEUDO_DEPTH_KEY = "DD";
 const std::string GATKVCFConstants::PSEUDO_FRACTION_KEY = "DF";
 
 
+// INFO lines
+const std::string GATKVCFConstants::RAW_MAPPING_QUALITY_WITH_DEPTH_KEY_LINE =
+    "##INFO=<ID=RAW_MQandDP,Number=2,Type=Integer,Description=\"Raw data (sum of squared MQ and total depth) for improved RMS Mapping Quality calculation. Incompatible with deprecated RAW_MQ formulation.\">";

@@ -23,7 +23,8 @@ const std::string VcfSharedAttributeConstants::ALLELE_SPECIFIC_SEP = "|";
 const std::unordered_set<std::string>
 VcfSharedAttributeConstants::REDUCIBLE_KEYS = {
     "AS_RAW_BaseQRankSum", "AS_RAW_MQ", "AS_RAW_MQRankSum", 
-    "AS_RAW_ReadPosRankSum", "AS_SB_TABLE", "AS_SOR", "RAW_MQandDP"};
+    "AS_RAW_ReadPosRankSum", "AS_SB_TABLE", "AS_SOR", "RAW_MQandDP",
+    "RAW_MQ"};
 
 
 const std::unordered_set<std::string> VcfSharedAttributeConstants::STALE_KEYS =

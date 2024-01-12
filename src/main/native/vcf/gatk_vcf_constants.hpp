@@ -179,6 +179,9 @@ public:
     static const std::string ALLELE_SPECIFIC_ANNOTATION_PREFIX;
     static const std::string PSEUDO_DEPTH_KEY;
     static const std::string PSEUDO_FRACTION_KEY;
+
+    // INFO lines
+    static const std::string RAW_MAPPING_QUALITY_WITH_DEPTH_KEY_LINE;
 };
 
 

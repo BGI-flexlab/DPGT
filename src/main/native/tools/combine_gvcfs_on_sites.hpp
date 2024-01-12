@@ -14,6 +14,7 @@
 #include "vcf/variant_builder.hpp"
 #include "vcf/vcf_writer.hpp"
 #include "tools/reference_confident_variant_merger.hpp"
+#include "vcf/gatk_vcf_constants.hpp"
 
 /**
  * @brief Combine gvcfs on input sites
@@ -23,9 +24,12 @@ public:
     CombineGVCFsOnSites(MultiVcfReader *reader,
         CachedRefSeq *cached_ref_seq, VariantSiteSet *vs_set,
         std::string chrom, VcfWriter *vcf_writer):
-        reader_(reader), cached_ref_seq_(cached_ref_seq), vs_set_(vs_set),
+        reader_(reader), merged_header_(reader->header()),
+        cached_ref_seq_(cached_ref_seq), vs_set_(vs_set),
         chrom_(std::move(chrom)), vcf_writer_(vcf_writer)
     {
+        bcf_hdr_append(merged_header_,
+            GATKVCFConstants::RAW_MAPPING_QUALITY_WITH_DEPTH_KEY_LINE.c_str());
         cur_site_ = vs_set->firstSite();
         tid_ = bcf_hdr_name2id(getMergedHeader(), chrom_.c_str());
         merged_samples_ = createMergedSamples();
@@ -40,6 +44,7 @@ public:
 
 private:
     MultiVcfReader *reader_ = nullptr;
+    bcf_hdr_t *merged_header_ = nullptr;
     CachedRefSeq *cached_ref_seq_ = nullptr;
     VariantSiteSet *vs_set_ = nullptr;
     std::string chrom_;
@@ -54,7 +59,7 @@ private:
     std::vector<std::string> merged_samples_;
     // merged header related functions
     bcf_hdr_t *getMergedHeader() {
-        return reader_->header();
+        return merged_header_;
     }
 
     std::vector<std::string> createMergedSamples() {

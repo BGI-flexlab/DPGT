@@ -150,7 +150,7 @@ public:
     /**
      * @brief Get the INFO fields of this variant
      */
-    const std::map<std::string, VcfAttributeBase *> &getSharedAttributes();
+    std::map<std::string, VcfAttributeBase *> &getSharedAttributes();
 
     VariantContextType getType() {
         if (type_ == VariantContextType::NULL_TYPE) {
@@ -176,6 +176,16 @@ public:
         return m;
     }
 
+    /**
+     * @brief get depth(DP) of this variant
+     */
+    int32_t getDepth() {
+        if (DP_ > -1) return DP_;
+        DP_ = calculateDepth();
+        if (DP_ < 0) DP_ = 0;
+        return DP_;
+    }
+
 private:
     bcf1_t *variant_ = nullptr;
     bcf_hdr_t *header_ = nullptr;  // shared header
@@ -193,6 +203,8 @@ private:
 
     // vcf INFO fields
     std::map<std::string, VcfAttributeBase *> shared_attributes_;
+
+    int32_t DP_ = -1;
 
     VariantContextType type_ = VariantContextType::NULL_TYPE;
 
@@ -244,6 +256,8 @@ private:
         }
         return result;
     }
+
+    int32_t calculateDepth();
 
 };
 
