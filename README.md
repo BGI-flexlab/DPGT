@@ -15,7 +15,7 @@ Get DGPT from github.
 ```sh
 git clone --recursive git@github.com:BGI-flexlab/DPGT.git
 # switch to the tag we need
-git checkout v1.3.1.0
+git checkout v1.3.2.0
 # update submodule, we need to do this because different version of DPGT may use different versions of submodules
 git submodule update --init
 ```
@@ -49,7 +49,7 @@ export LD_LIBRARY_PATH=/path_to_dpgt_dir/build/lib:${LD_LIBRARY_PATH}
 java -jar dpgt-<version>.jar -h
 
 DPGT: Distributed Population Genetics analysis Tools
-Version: 1.3.1.0
+Version: 1.3.2.0
 
 Options:
  -i,--input <FILE>                        input gvcf list in a file, one gvcf file per line.
