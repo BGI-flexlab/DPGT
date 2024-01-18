@@ -78,6 +78,17 @@ import java.util.*;
     private final AFCalculator biAlleleExactModel;
     private final GenotypeLikelihoodCalculators calculators;
 
+    static class BialleicGLIndices {
+        public int BBIndex = 0;
+        public int [] XBIndices = null;
+        public int [] XXIndices = null;
+
+        public BialleicGLIndices(final int nXB, final int nXX) {
+            XBIndices = new int[nXB];
+            XXIndices = new int[nXX];
+        }
+    }
+
     IndependentAllelesDiploidExactAFCalculator() {
         biAlleleExactModel = new ReferenceDiploidExactAFCalculator();
         calculators = new GenotypeLikelihoodCalculators();
@@ -191,6 +202,7 @@ import java.util.*;
             return Collections.singletonList(vc);
         } else {
             // go through the work of ripping up the VC into its biallelic components
+
             final List<VariantContext> vcs = new LinkedList<>();
 
             for ( int altI = 0; altI < nAltAlleles; altI++ ) {
@@ -212,10 +224,18 @@ import java.util.*;
         if ( rootVC.isBiallelic() ) {
             return rootVC;
         }
+
+        int plCount = rootVC.getGenotype(0).getPL().length;
         final int nAlts = rootVC.getNAlleles() - 1;
+        BialleicGLIndices bialleicGLIndices = getBialleicGLIndices(plCount, altAlleleIndex, nAlts);
         final List<Genotype> biallelicGenotypes = new ArrayList<>(rootVC.getNSamples());
         for ( final Genotype g : rootVC.getGenotypes() ) {
-            biallelicGenotypes.add(combineGLsPrecise(g, altAlleleIndex, nAlts));
+            // biallelicGenotypes.add(combineGLsPrecise(g, altAlleleIndex, nAlts));
+
+            if (g.getPL().length != plCount) {
+                throw new IllegalStateException("PL length must be equal for one VC.");
+            }
+            biallelicGenotypes.add(combineGLsPreciseUseGLIndices(g, altAlleleIndex, nAlts, bialleicGLIndices));
         }
 
         final VariantContextBuilder vcb = new VariantContextBuilder(rootVC);
@@ -224,6 +244,83 @@ import java.util.*;
         vcb.genotypes(biallelicGenotypes);
         return vcb.make();
     }
+
+
+    static BialleicGLIndices getBialleicGLIndices(final int plCount, final int altIndex, final int nAlts) {
+        final int nAlleles = nAlts + 1;
+
+        int xbOffset = 0;
+        int xxOffset = 0;
+
+        BialleicGLIndices bialleicGLIndices = new BialleicGLIndices(nAlleles - 1, plCount - nAlleles);
+
+        for ( int index = 0; index < plCount; index++ ) {
+            final GenotypeLikelihoods.GenotypeLikelihoodsAllelePair pair = GenotypeLikelihoods.getAllelePair(index);
+            final int i = pair.alleleIndex1;
+            final int j = pair.alleleIndex2;
+            if (i == j) {
+              if (i == altIndex) {
+                  bialleicGLIndices.BBIndex = index;
+              } else {
+                  bialleicGLIndices.XXIndices[xxOffset++] = index;
+              }
+            } else if (i == altIndex || j == altIndex) {
+                bialleicGLIndices.XBIndices[xbOffset++] = index;
+            } else {
+                bialleicGLIndices.XXIndices[xxOffset++] = index;
+            }
+        }
+
+        return bialleicGLIndices;
+    }
+
+    @VisibleForTesting
+    static Genotype combineGLsPreciseUseGLIndices(final Genotype original, final int altIndex, final int nAlts, final BialleicGLIndices bialleicGLIndices) {
+
+        if ( original.isNonInformative() ) {
+            return new GenotypeBuilder(original).PL(BIALLELIC_NON_INFORMATIVE_PLS).alleles(BIALLELIC_NOCALL).make();
+        }
+
+        if ( altIndex < 1 || altIndex > nAlts ) {
+            throw new IllegalStateException("altIndex must be between 1 and nAlts " + nAlts);
+        }
+
+        final int[] pls = original.getPL();
+
+        final int nAlleles = nAlts + 1;
+
+        final int plCount = pls.length;
+
+        double BB = PHRED_2_LOG10_COEFF * pls[bialleicGLIndices.BBIndex];
+        final double[] XBvalues = new double[nAlleles - 1];
+        final double[] XXvalues = new double[plCount - nAlleles];
+
+        for (int i = 0; i < XBvalues.length; ++i) {
+            XBvalues[i] = PHRED_2_LOG10_COEFF * pls[bialleicGLIndices.XBIndices[i]];
+        }
+
+        for (int i = 0; i < XXvalues.length; ++i) {
+            XXvalues[i] = PHRED_2_LOG10_COEFF * pls[bialleicGLIndices.XXIndices[i]];
+        }
+
+        final double XB = MathUtils.log10SumLog10(XBvalues);
+        final double XX = MathUtils.log10SumLog10(XXvalues);
+
+        final double[] GLs = { XX, XB, BB};
+
+        // not use GenotypeBuilder(final Genotype g) constructor
+        // to avoid copy extend attributes and unnecessary copy of origin alleles and PL
+        GenotypeBuilder genotypeBuilder = new GenotypeBuilder(original.getSampleName());
+        genotypeBuilder.alleles(BIALLELIC_NOCALL);
+        genotypeBuilder.phased(original.isPhased());
+        genotypeBuilder.GQ(original.getGQ());
+        genotypeBuilder.DP(original.getDP());
+        genotypeBuilder.AD(original.getAD());
+        genotypeBuilder.PL(GLs);
+        genotypeBuilder.filter(original.getFilters());
+        return genotypeBuilder.make();
+    }
+
 
     /**
      * Returns a new Genotype with the PLs of the multi-allelic original reduced to a bi-allelic case.
@@ -295,7 +392,18 @@ import java.util.*;
         final double XX = MathUtils.log10SumLog10(XXvalues);
 
         final double[] GLs = { XX, XB, BB};
-        return new GenotypeBuilder(original).PL(GLs).alleles(BIALLELIC_NOCALL).make();
+
+        // not use GenotypeBuilder(final Genotype g) constructor
+        // to avoid copy extend attributes and unnecessary copy of origin alleles and PL
+        GenotypeBuilder genotypeBuilder = new GenotypeBuilder(original.getSampleName());
+        genotypeBuilder.alleles(BIALLELIC_NOCALL);
+        genotypeBuilder.phased(original.isPhased());
+        genotypeBuilder.GQ(original.getGQ());
+        genotypeBuilder.DP(original.getDP());
+        genotypeBuilder.AD(original.getAD());
+        genotypeBuilder.PL(GLs);
+        genotypeBuilder.filter(original.getFilters());
+        return genotypeBuilder.make();
     }
 
     @VisibleForTesting
