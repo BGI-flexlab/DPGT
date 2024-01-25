@@ -5,7 +5,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
-import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.broadinstitute.barclay.argparser.CommandLineException;
 import org.broadinstitute.hellbender.engine.AlignmentContext;
@@ -252,7 +252,8 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
 
         final AFCalculator afCalculator = configuration.genotypeArgs.useOldAFCalculator ?
                 afCalculatorProvider.getInstance(vc,defaultPloidy,maxAltAlleles) : newAFCalculator;
-        final AFCalculationResult AFresult = afCalculator.getLog10PNonRef(reducedVC, defaultPloidy, maxAltAlleles, getAlleleFrequencyPriors(vc,defaultPloidy,model));
+        AlleleFrequencyPriorsAndLog10sum alleleFrequencyPriorsAndLog10sum = getAlleleFrequencyPriorsAndLog10sum(vc,defaultPloidy,model);
+        final AFCalculationResult AFresult = afCalculator.getLog10PNonRef(reducedVC, defaultPloidy, maxAltAlleles, alleleFrequencyPriorsAndLog10sum.priors, alleleFrequencyPriorsAndLog10sum.log10sum);
         final OutputAlleleSubset outputAlternativeAlleles = calculateOutputAlleleSubset(AFresult, vc);
 
         // posterior probability that at least one alt allele exists in the samples
@@ -568,6 +569,15 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
         return new VariantCallContext(vc, passesCallThreshold(QualityUtils.phredScaleLog10CorrectRate(log10POfRef)), false);
     }
 
+    protected class AlleleFrequencyPriorsAndLog10sum {
+        protected final double [] priors;
+        protected final double log10sum;
+        protected AlleleFrequencyPriorsAndLog10sum(final double [] priors, final double log10sum) {
+            this.priors = priors;
+            this.log10sum = log10sum;
+        }
+    }
+
     /**
      * Returns the log10 prior probability for all possible allele counts from 0 to N where N is the total number of
      * genomes (total-ploidy).
@@ -578,6 +588,22 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
      * @throws java.lang.NullPointerException if either {@code vc} or {@code model} is {@code null}
      * @return never {@code null}, an array with exactly <code>total-ploidy(vc) + 1</code> positions.
      */
+    protected final AlleleFrequencyPriorsAndLog10sum getAlleleFrequencyPriorsAndLog10sum( final VariantContext vc, final int defaultPloidy, final GenotypeLikelihoodsCalculationModel model ) {
+        final int totalPloidy = GATKVariantContextUtils.totalPloidy(vc, defaultPloidy);
+        switch (model) {
+            case SNP:
+            case GENERALPLOIDYSNP:
+                return new AlleleFrequencyPriorsAndLog10sum(
+                    log10AlleleFrequencyPriorsSNPs.forTotalPloidy(totalPloidy), log10AlleleFrequencyPriorsSNPs.getLog10sum(totalPloidy));
+            case INDEL:
+            case GENERALPLOIDYINDEL:
+                return new AlleleFrequencyPriorsAndLog10sum(
+                    log10AlleleFrequencyPriorsIndels.forTotalPloidy(totalPloidy), log10AlleleFrequencyPriorsIndels.getLog10sum(totalPloidy));
+            default:
+                throw new IllegalArgumentException("Unexpected GenotypeCalculationModel " + model);
+        }
+    }
+
     protected final double[] getAlleleFrequencyPriors( final VariantContext vc, final int defaultPloidy, final GenotypeLikelihoodsCalculationModel model ) {
         final int totalPloidy = GATKVariantContextUtils.totalPloidy(vc, defaultPloidy);
         switch (model) {
@@ -591,6 +617,7 @@ public abstract class GenotypingEngine<Config extends StandardCallerArgumentColl
                 throw new IllegalArgumentException("Unexpected GenotypeCalculationModel " + model);
         }
     }
+
 
     /**
      * Compute the log10 probability of a sample with sequencing depth and no alt allele is actually truly homozygous reference

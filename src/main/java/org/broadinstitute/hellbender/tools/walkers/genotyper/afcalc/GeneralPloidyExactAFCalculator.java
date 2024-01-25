@@ -18,12 +18,12 @@ public final class GeneralPloidyExactAFCalculator extends ExactAFCalculator {
     private static final GenotypeLikelihoodCalculators GL_CALCS = new GenotypeLikelihoodCalculators();
 
     @Override
-    protected AFCalculationResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy, final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
+    protected AFCalculationResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy, final double[] log10AlleleFrequencyPriors, final double log10SumACPriors, final StateTracker stateTracker) {
         Utils.nonNull(vc, "vc is null");
         Utils.nonNull(log10AlleleFrequencyPriors, "log10AlleleFrequencyPriors is null");
         Utils.nonNull(stateTracker, "stateTracker is null");
         combineSinglePools(vc.getGenotypes(), defaultPloidy, vc.getNAlleles(), log10AlleleFrequencyPriors);
-        return getResultFromFinalState(vc, log10AlleleFrequencyPriors, stateTracker);
+        return getResultFromFinalState(vc, log10AlleleFrequencyPriors, log10SumACPriors, stateTracker);
     }
 
     /**

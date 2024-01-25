@@ -24,7 +24,8 @@ public final class ReferenceDiploidExactAFCalculator extends ExactAFCalculator {
 
     @Override
     protected AFCalculationResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy,
-                                                      final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
+                                                      final double[] log10AlleleFrequencyPriors, 
+                                                      final double log10SumACPriors,final StateTracker stateTracker) {
         Utils.nonNull(vc, "vc is null");
         Utils.nonNull(log10AlleleFrequencyPriors, "log10AlleleFrequencyPriors is null");
         Utils.nonNull(stateTracker, "stateTracker is null");
@@ -143,7 +144,7 @@ public final class ReferenceDiploidExactAFCalculator extends ExactAFCalculator {
         }
         // EM algorithm by gongchun end
 
-        return getResultFromFinalState(vc, log10AlleleFrequencyPriors, stateTracker);
+        return getResultFromFinalState(vc, log10AlleleFrequencyPriors, log10SumACPriors, stateTracker);
     }
 
 

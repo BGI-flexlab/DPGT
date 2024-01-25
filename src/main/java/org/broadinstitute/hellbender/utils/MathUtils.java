@@ -1085,6 +1085,67 @@ public final class MathUtils {
         return a > b ? a + FastMath.log(1 + FastMath.exp(b - a)) : b + FastMath.log(1 + FastMath.exp(a - b));
     }
 
+    private static final class Pow10Table {
+        public static final int POW10TABLE_SIZE = 2048;
+        public static final double[] cache = new double[POW10TABLE_SIZE];
+
+        static {
+            for (int i = 0; i < POW10TABLE_SIZE; ++i) {
+                cache[i] = Math.pow(10.0f, -0.1*i);
+            }
+        }
+
+        public static double get(int i) {
+            return cache[i];
+        }
+    }
+
+    public static int minElement(final int [] array, int start, int finish) {
+        int min = Integer.MAX_VALUE;
+        for (int i = start; i < finish; ++i) {
+            if (array[i] < min) min = array[i];
+        }
+        return min;
+    }
+
+    public static double PLsumLog10(final int [] pls) {
+        return PLsumLog10(pls, 0, pls.length);
+    }
+
+    public static double PLsumLog10(final int [] pls, int start) {
+        return PLsumLog10(pls, start, pls.length);
+    }
+
+    public static double PLsumLog10(final int [] pls, int start, int finish)
+    {
+        if (start >= finish)
+        {
+            return Double.NEGATIVE_INFINITY;
+        }
+
+        int min_value = minElement(pls, start, finish);
+
+        double sum = 0.0;
+        for (int i = start; i < finish; ++i)
+        {
+            int scaled_val = pls[i] - min_value;
+            if (scaled_val < Pow10Table.POW10TABLE_SIZE) {
+                sum += Pow10Table.get(scaled_val);
+            } else {
+                sum += Math.pow(10.0f, -0.1*scaled_val);
+            }
+
+            // sum += pow(10.0f, log10_values[i]-max_value);
+        }
+
+        if ( Double.isNaN(sum) || sum == Double.POSITIVE_INFINITY ) {
+            throw new IllegalArgumentException("log10 p: Values must be non-infinite and non-NAN");
+        }
+
+        // return max_value + (sum != 1.0 ? log10(sum) : 0.0);
+        return -0.1*min_value + Math.log10(sum);
+    }
+
     /**
      * Calculate f(x) = log10 ( Normal(x | mu = mean, sigma = sd) )
      * @param mean the desired mean of the Normal distribution

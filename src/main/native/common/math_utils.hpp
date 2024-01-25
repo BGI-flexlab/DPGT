@@ -190,34 +190,56 @@ private:
 };
 
 
-int MaxElementIndex(const std::vector<double> &vec, int start,
+#define POW10TABLE_SIZE 2048
+#define POW10TABLE_SIZE_F 204.8f
+
+class Pow10Table {
+public:
+    Pow10Table();
+    ~Pow10Table();
+
+    double &operator[](int index) const;
+
+private:
+    double *cache = nullptr;
+};
+
+
+int MaxElementIndex(double *vec, long length, int start,
     int finish);
 
+int MinElement(int *vec, long length, int start, int finish);
 
 double Log10SumLog10(double x, double y);
 
 double Log10SumLog10(double x, double y, double z);
 
-double Log10SumLog10(const std::vector<double> &log10_values);
+double Log10SumLog10(double *log10_values, long length);
 
-double Log10SumLog10(const std::vector<double> &log10_values, int start);
+double Log10SumLog10(double *log10_values, long length, long start);
 
-double Log10SumLog10(const std::vector<double> &log10_values, int start,
-    int finish);
+double Log10SumLog10(double *log10_values, long length, long start,
+    long finish);
 
 
 double ApproximateLog10SumLog10(double x, double y);
 
 double ApproximateLog10SumLog10(double x, double y, double z);
 
+double ApproximateLog10SumLog10(double *log10_values, long length);
 
-double ApproximateLog10SumLog10(const std::vector<double> &log10_values);
+double ApproximateLog10SumLog10(double *log10_values, long length,
+    long start);
 
-double ApproximateLog10SumLog10(const std::vector<double> &log10_values,
-    int start);
+double ApproximateLog10SumLog10(double *log10_values, long length,
+    long start, long finish);
 
-double ApproximateLog10SumLog10(const std::vector<double> &log10_values,
-    int start, int finish);
+
+double PLsumLog10(int a, int b);
+double PLsumLog10(int a, int b, int c);
+double PLsumLog10(int *pls, long length);
+double PLsumLog10(int *pls, long length, long start);
+double PLsumLog10(int *pls, long length, long start, long finish);
 
 
 inline

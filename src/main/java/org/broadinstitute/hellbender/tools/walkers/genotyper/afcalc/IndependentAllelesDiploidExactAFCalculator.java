@@ -98,12 +98,13 @@ import java.util.*;
     public AFCalculationResult computeLog10PNonRef(final VariantContext vc,
                                                    final int defaultPloidy,
                                                    final double[] log10AlleleFrequencyPriors,
+                                                   final double log10SumACPriors,
                                                    final StateTracker stateTracker) {
         Utils.nonNull(vc, "vc is null");
         Utils.nonNull(log10AlleleFrequencyPriors, "log10AlleleFrequencyPriors is null");
         Utils.nonNull(stateTracker, "stateTracker is null");
 
-        final List<AFCalculationResult> independentResultTrackers = computeAlleleIndependentExact(vc, defaultPloidy, log10AlleleFrequencyPriors);
+        final List<AFCalculationResult> independentResultTrackers = computeAlleleIndependentExact(vc, defaultPloidy, log10AlleleFrequencyPriors, log10SumACPriors);
 
         if ( independentResultTrackers.isEmpty() ) {
             throw new IllegalStateException("Independent alleles model returned an empty list of results at VC " + vc);
@@ -113,16 +114,16 @@ import java.util.*;
             // fast path for the very common bi-allelic use case
             return independentResultTrackers.get(0);
         } else {
-            final AFCalculationResult combinedAltAllelesResult = combineAltAlleleIndependentExact(vc,defaultPloidy,log10AlleleFrequencyPriors);
+            final AFCalculationResult combinedAltAllelesResult = combineAltAlleleIndependentExact(vc,defaultPloidy,log10AlleleFrequencyPriors, log10SumACPriors);
             // we are a multi-allelic, so we need to actually combine the results
             final List<AFCalculationResult> withMultiAllelicPriors = applyMultiAllelicPriors(independentResultTrackers);
             return combineIndependentPNonRefs(vc, withMultiAllelicPriors, combinedAltAllelesResult);
         }
     }
 
-    private AFCalculationResult combineAltAlleleIndependentExact(final VariantContext vc, final int defaultPloidy, final double[] log10AlleleFrequencyPriors) {
+    private AFCalculationResult combineAltAlleleIndependentExact(final VariantContext vc, final int defaultPloidy, final double[] log10AlleleFrequencyPriors, final double log10SumACPriors) {
         final VariantContext combinedAltAllelesVariantContext = makeCombinedAltAllelesVariantContext(vc);
-        return biAlleleExactModel.getLog10PNonRef(combinedAltAllelesVariantContext, defaultPloidy, vc.getNAlleles() - 1, log10AlleleFrequencyPriors);
+        return biAlleleExactModel.getLog10PNonRef(combinedAltAllelesVariantContext, defaultPloidy, vc.getNAlleles() - 1, log10AlleleFrequencyPriors, log10SumACPriors);
     }
 
     private VariantContext makeCombinedAltAllelesVariantContext(final VariantContext vc) {
@@ -176,11 +177,12 @@ import java.util.*;
      * @return a list of the AFCalcResults for each bi-allelic sub context of vc
      */
     private List<AFCalculationResult> computeAlleleIndependentExact(final VariantContext vc, final int defaultPloidy,
-                                                                    final double[] log10AlleleFrequencyPriors) {
+                                                                    final double[] log10AlleleFrequencyPriors,
+                                                                    final double log10SumACPriors) {
         final List<AFCalculationResult> results = new LinkedList<>();
 
         for ( final VariantContext subvc : makeAlleleConditionalContexts(vc) ) {
-            final AFCalculationResult resultTracker = biAlleleExactModel.getLog10PNonRef(subvc, defaultPloidy, vc.getNAlleles() - 1, log10AlleleFrequencyPriors);
+            final AFCalculationResult resultTracker = biAlleleExactModel.getLog10PNonRef(subvc, defaultPloidy, vc.getNAlleles() - 1, log10AlleleFrequencyPriors, log10SumACPriors);
             results.add(resultTracker);
         }
 
@@ -229,13 +231,16 @@ import java.util.*;
         final int nAlts = rootVC.getNAlleles() - 1;
         BialleicGLIndices bialleicGLIndices = getBialleicGLIndices(plCount, altAlleleIndex, nAlts);
         final List<Genotype> biallelicGenotypes = new ArrayList<>(rootVC.getNSamples());
+        final int[] XBpLvalues = new int[nAlts];
+        final int[] XXpLvalues = new int[plCount - nAlts - 1];
         for ( final Genotype g : rootVC.getGenotypes() ) {
             // biallelicGenotypes.add(combineGLsPrecise(g, altAlleleIndex, nAlts));
 
             if (g.getPL().length != plCount) {
                 throw new IllegalStateException("PL length must be equal for one VC.");
             }
-            biallelicGenotypes.add(combineGLsPreciseUseGLIndices(g, altAlleleIndex, nAlts, bialleicGLIndices));
+            biallelicGenotypes.add(
+                combineGLsPreciseUseGLIndices(g, altAlleleIndex, nAlts, bialleicGLIndices, XBpLvalues, XXpLvalues));
         }
 
         final VariantContextBuilder vcb = new VariantContextBuilder(rootVC);
@@ -275,7 +280,9 @@ import java.util.*;
     }
 
     @VisibleForTesting
-    static Genotype combineGLsPreciseUseGLIndices(final Genotype original, final int altIndex, final int nAlts, final BialleicGLIndices bialleicGLIndices) {
+    static Genotype combineGLsPreciseUseGLIndices(final Genotype original, final int altIndex, final int nAlts, final BialleicGLIndices bialleicGLIndices,
+        final int[] XBpLvalues, final int[] XXpLvalues)
+    {
 
         if ( original.isNonInformative() ) {
             return new GenotypeBuilder(original).PL(BIALLELIC_NON_INFORMATIVE_PLS).alleles(BIALLELIC_NOCALL).make();
@@ -287,26 +294,26 @@ import java.util.*;
 
         final int[] pls = original.getPL();
 
-        final int nAlleles = nAlts + 1;
+        // final int nAlleles = nAlts + 1;
 
-        final int plCount = pls.length;
+        // final int plCount = pls.length;
 
         double BB = PHRED_2_LOG10_COEFF * pls[bialleicGLIndices.BBIndex];
-        final double[] XBvalues = new double[nAlleles - 1];
-        final double[] XXvalues = new double[plCount - nAlleles];
+        // final int[] XBpLvalues = new int[nAlleles - 1];
+        // final int[] XXpLvalues = new int[plCount - nAlleles];
 
-        for (int i = 0; i < XBvalues.length; ++i) {
-            XBvalues[i] = PHRED_2_LOG10_COEFF * pls[bialleicGLIndices.XBIndices[i]];
+        for (int i = 0; i < XBpLvalues.length; ++i) {
+            XBpLvalues[i] = pls[bialleicGLIndices.XBIndices[i]];
         }
 
-        for (int i = 0; i < XXvalues.length; ++i) {
-            XXvalues[i] = PHRED_2_LOG10_COEFF * pls[bialleicGLIndices.XXIndices[i]];
+        for (int i = 0; i < XXpLvalues.length; ++i) {
+            XXpLvalues[i] = pls[bialleicGLIndices.XXIndices[i]];
         }
 
-        final double XB = MathUtils.log10SumLog10(XBvalues);
-        final double XX = MathUtils.log10SumLog10(XXvalues);
+        final double XB = MathUtils.PLsumLog10(XBpLvalues);
+        final double XX = MathUtils.PLsumLog10(XXpLvalues);
 
-        final double[] GLs = { XX, XB, BB};
+        final double[] GLs = {XX, XB, BB};
 
         // not use GenotypeBuilder(final Genotype g) constructor
         // to avoid copy extend attributes and unnecessary copy of origin alleles and PL

@@ -23,14 +23,14 @@ public abstract class AFCalculator {
      * @param log10AlleleFrequencyPriors a prior vector nSamples x 2 in length indicating the Pr(AF = i)
      * @return result (for programming convenience)
      */
-    public AFCalculationResult getLog10PNonRef(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles, final double[] log10AlleleFrequencyPriors) {
+    public AFCalculationResult getLog10PNonRef(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles, final double[] log10AlleleFrequencyPriors, final double log10SumACPriors) {
         Utils.nonNull(vc, "VariantContext cannot be null");
         Utils.nonNull(log10AlleleFrequencyPriors, "priors vector cannot be null");
         Utils.validateArg( vc.getNAlleles() > 1, () -> "VariantContext has only a single reference allele, but getLog10PNonRef requires at least one alt allele " + vc);
 
         // reset the result, so we can store our new result there
         final StateTracker stateTracker = getStateTracker(true, maximumAlternativeAlleles);
-        return computeLog10PNonRef(vc, defaultPloidy, log10AlleleFrequencyPriors, stateTracker);
+        return computeLog10PNonRef(vc, defaultPloidy, log10AlleleFrequencyPriors, log10SumACPriors, stateTracker);
     }
 
     /**
@@ -42,12 +42,12 @@ public abstract class AFCalculator {
      * @param log10AlleleFrequencyPriors the priors by AC vector
      * @return a AFCalculationResult describing the result of this calculation
      */
-    protected AFCalculationResult getResultFromFinalState(final VariantContext vc, final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker) {
+    protected AFCalculationResult getResultFromFinalState(final VariantContext vc, final double[] log10AlleleFrequencyPriors, final double log10SumACPriors, final StateTracker stateTracker) {
         Utils.nonNull(vc, "vc cannot be null");
         Utils.nonNull(log10AlleleFrequencyPriors, "log10AlleleFrequencyPriors cannot be null");
 
         stateTracker.setAllelesUsedInGenotyping(vc.getAlleles());
-        return stateTracker.toAFCalculationResult(log10AlleleFrequencyPriors);
+        return stateTracker.toAFCalculationResult(log10AlleleFrequencyPriors, log10SumACPriors);
     }
 
     // ---------------------------------------------------------------------------
@@ -66,7 +66,8 @@ public abstract class AFCalculator {
      * @return a AFCalcResult object describing the results of this calculation
      */
     protected abstract AFCalculationResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy,
-                                                        final double[] log10AlleleFrequencyPriors, final StateTracker stateTracker);
+                                                        final double[] log10AlleleFrequencyPriors, 
+                                                        double log10SumACPriors,final StateTracker stateTracker);
 
     /**
      * Retrieves the state tracker.

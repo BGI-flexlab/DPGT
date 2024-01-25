@@ -155,11 +155,12 @@ final class StateTracker {
      *
      * @return an AFCalcResult summarizing the final results of this calculation
      */
-    protected AFCalculationResult toAFCalculationResult(final double[] log10PriorsByAC) {
+    protected AFCalculationResult toAFCalculationResult(final double[] log10PriorsByAC, final double log10SumACPriors) {
         final int [] subACOfMLE = Arrays.copyOf(alleleCountsOfMLE, allelesUsedInGenotyping.size() - 1);
         //TODO bad calculation of normalized log10 ACeq0 and ACgt0 likelihoods, priors and consequently posteriors calculated in AFCalculationResult constructor.
         final double[] log10Likelihoods = MathUtils.normalizeLog10(new double[]{getLog10LikelihoodOfAFzero(), getLog10LikelihoodOfAFNotZero()});
-        final double[] log10Priors = MathUtils.normalizeLog10(new double[]{log10PriorsByAC[0], MathUtils.log10sumLog10(log10PriorsByAC, 1)});
+        // final double[] log10Priors = MathUtils.normalizeLog10(new double[]{log10PriorsByAC[0], MathUtils.log10sumLog10(log10PriorsByAC, 1)});
+        final double[] log10Priors = MathUtils.normalizeLog10(new double[]{log10PriorsByAC[0], log10SumACPriors});
 
         final Map<Allele, Double> log10pRefByAllele = new HashMap<Allele, Double>(allelesUsedInGenotyping.size());
         for ( int i = 0; i < subACOfMLE.length; i++ ) {

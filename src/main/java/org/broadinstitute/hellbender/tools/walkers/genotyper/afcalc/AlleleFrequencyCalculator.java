@@ -43,7 +43,7 @@ public final class AlleleFrequencyCalculator extends AFCalculator {
 
     public AFCalculationResult getLog10PNonRef(final VariantContext vc) {
         // maxAltAlleles is not used by getLog10PNonRef, so don't worry about the 0
-        return getLog10PNonRef(vc, defaultPloidy, 0, null);
+        return getLog10PNonRef(vc, defaultPloidy, 0, null, 0.0);
     }
     //TODO: this should be a class of static methods once the old AFCalculator is gone.
     /**
@@ -56,7 +56,7 @@ public final class AlleleFrequencyCalculator extends AFCalculator {
      * @return result (for programming convenience)
      */
     @Override
-    public AFCalculationResult getLog10PNonRef(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles, final double[] refSnpIndelPseudocounts) {
+    public AFCalculationResult getLog10PNonRef(final VariantContext vc, final int defaultPloidy, final int maximumAlternativeAlleles, final double[] refSnpIndelPseudocounts, final double placeHolder) {
         Utils.nonNull(vc, "VariantContext cannot be null");
         final int numAlleles = vc.getNAlleles();
         final List<Allele> alleles = vc.getAlleles();
@@ -201,11 +201,11 @@ public final class AlleleFrequencyCalculator extends AFCalculator {
     }
 
     @Override   //Note: unused
-    protected AFCalculationResult getResultFromFinalState(final VariantContext vc, final double[] priors, final StateTracker st) { return null; }
+    protected AFCalculationResult getResultFromFinalState(final VariantContext vc, final double[] priors, final double placeHolder, final StateTracker st) { return null; }
 
     @Override//Note: unused
     protected AFCalculationResult computeLog10PNonRef(final VariantContext vc, final int defaultPloidy,
-                                                               final double[] priors, final StateTracker st) { return null; }
+                                                               final double[] priors, final double placeHolder, final StateTracker st) { return null; }
 
     @Override   //Note: unused
     protected StateTracker getStateTracker(final boolean reset, final int maximumAlternativeAlleleCount) { return null; }
