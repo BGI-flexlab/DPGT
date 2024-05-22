@@ -207,7 +207,19 @@ import java.util.*;
 
             final List<VariantContext> vcs = new LinkedList<>();
 
+            // Map<String, Integer> gtcSampleNameToOffset = new HashMap<String, Integer>(vc.getNSamples());
+            // ArrayList<String> gtcSampleNameInOrder = new ArrayList<>();
+            // int i = 0;
+            // for ( final Genotype g : vc.getGenotypes() ) {
+            //     gtcSampleNameToOffset.put(g.getSampleName(), i);
+            //     gtcSampleNameInOrder.add(g.getSampleName());
+            //     ++i;
+            // }
+
+            // Collections.sort(gtcSampleNameInOrder);
+
             for ( int altI = 0; altI < nAltAlleles; altI++ ) {
+                // vcs.add(biallelicCombinedGLs(vc, altI + 1, gtcSampleNameToOffset, gtcSampleNameInOrder));
                 vcs.add(biallelicCombinedGLs(vc, altI + 1));
             }
 
@@ -222,7 +234,8 @@ import java.util.*;
      * @param altAlleleIndex index of the alt allele, from 0 == first alt allele
      * @return a bi-allelic variant context based on rootVC
      */
-    private static VariantContext biallelicCombinedGLs(final VariantContext rootVC, final int altAlleleIndex) {
+    private static VariantContext biallelicCombinedGLs(final VariantContext rootVC, final int altAlleleIndex)
+    {
         if ( rootVC.isBiallelic() ) {
             return rootVC;
         }
@@ -230,7 +243,7 @@ import java.util.*;
         int plCount = rootVC.getGenotype(0).getPL().length;
         final int nAlts = rootVC.getNAlleles() - 1;
         BialleicGLIndices bialleicGLIndices = getBialleicGLIndices(plCount, altAlleleIndex, nAlts);
-        final List<Genotype> biallelicGenotypes = new ArrayList<>(rootVC.getNSamples());
+        final ArrayList<Genotype> biallelicGenotypes = new ArrayList<>(rootVC.getNSamples());
         final int[] XBpLvalues = new int[nAlts];
         final int[] XXpLvalues = new int[plCount - nAlts - 1];
         for ( final Genotype g : rootVC.getGenotypes() ) {
@@ -247,6 +260,9 @@ import java.util.*;
         final Allele altAllele = rootVC.getAlternateAllele(altAlleleIndex - 1);
         vcb.alleles(Arrays.asList(rootVC.getReference(), altAllele));
         vcb.genotypes(biallelicGenotypes);
+        // GenotypesContext genotypesContext = GenotypesContext.create(
+        //     biallelicGenotypes, gtcSampleNameToOffset, gtcSampleNameInOrder);
+        // vcb.genotypes(genotypesContext);
         return vcb.make();
     }
 

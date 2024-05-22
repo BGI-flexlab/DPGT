@@ -31,7 +31,21 @@ public final class ReferenceDiploidExactAFCalculator extends ExactAFCalculator {
         Utils.nonNull(stateTracker, "stateTracker is null");
         final int numAlternateAlleles = vc.getNAlleles() - 1;
 
-        final List<double[]> genotypeLikelihoods = getGLs(vc.getGenotypes(), true, vc.hasAllele(Allele.NON_REF_ALLELE));
+        // final List<double[]> genotypeLikelihoods = getGLs(vc.getGenotypes(), true, vc.hasAllele(Allele.NON_REF_ALLELE));        
+        final List<int[]> PLs = getPLs(vc.getGenotypes(), true, vc.hasAllele(Allele.NON_REF_ALLELE));
+        final List<double[]> genotypeLikelihoods3 = new ArrayList<>(PLs.size());
+        for (int i = 0; i < PLs.size(); ++i) {
+            int [] pl = PLs.get(i);
+            double[] gl = new double[pl.length];
+            for (int j = 0; j < pl.length; ++j) {
+                gl[j] = -0.1 * pl[j];  // phred score to log10(p)
+            }
+            genotypeLikelihoods3.add(gl);
+        }
+
+        final List<double[]> genotypeLikelihoods = new ArrayList<>(PLs.size());
+        genotypeLikelihoods.add(new double[]{0.0, 0.0, 0.0});
+
         // gatk code start
         // final int numSamples = genotypeLikelihoods.size()-1;
         // final int numChr = 2*numSamples;
@@ -61,16 +75,21 @@ public final class ReferenceDiploidExactAFCalculator extends ExactAFCalculator {
         // gatk code end
         
         // EM algorithm by gongchun
-        final int numSamples3 = genotypeLikelihoods.size()-1;
+        final int numSamples3 = PLs.size()-1;
         final int numChr3 = 2*numSamples3;
         double af=0.5;
         int iter=0;
         double lastAf=0;
+        // log10(p) to p
+        // perf improve by calculating p from PL phred score directly using pow10 cache
+        // avoid calculate pow10
         for(int j=1;j<=numSamples3;j++) {
-            double[] gls = genotypeLikelihoods.get(j);
-            for (int k = 0; k < 3; k++) {
-                gls[k] = pow(10, gls[k]);
+            int [] pl = PLs.get(j);
+            double[] gl = new double[pl.length];
+            for (int k = 0; k < pl.length; k++) {
+                gl[k] = MathUtils.pow10OfPhredScore(pl[k]);
             }
+            genotypeLikelihoods.add(gl);
         }
         for(int i=1;i<=100;i++){
             double totalSum=0;
@@ -90,7 +109,6 @@ public final class ReferenceDiploidExactAFCalculator extends ExactAFCalculator {
         double dAC=af*numChr3;
         int ac=(int)(dAC+0.5d);
         int acCutoff=100;
-        final List<double[]> genotypeLikelihoods3 = getGLs(vc.getGenotypes(), true, vc.hasAllele(Allele.NON_REF_ALLELE));
         final LinkedList<ExactACset> ACqueue3 = new LinkedList<>();
 
         final HashMap<ExactACcounts, ExactACset> indexesToACset3 = new HashMap<>(numChr3+1);

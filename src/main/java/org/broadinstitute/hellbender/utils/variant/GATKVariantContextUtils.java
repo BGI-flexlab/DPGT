@@ -47,9 +47,15 @@ public final class GATKVariantContextUtils {
     private static final GenotypeLikelihoodCalculators GL_CALCS = new GenotypeLikelihoodCalculators();
 
     public static final double SUM_GL_THRESH_NOCALL = -0.1; // if sum(gl) is bigger than this threshold, we treat GL's as non-informative and will force a no-call.
+    public static final long SUM_PL_THRESH_NOCALL = 1; // if sum(pl) is less than this threshold, we treat GL's as non-informative and will force a no-call.
+
 
     public static boolean isInformative(final double[] gls) {
         return MathUtils.sum(gls) < GATKVariantContextUtils.SUM_GL_THRESH_NOCALL;
+    }
+
+    public static boolean isInformative(final int[] pl) {
+        return MathUtils.sum(pl) > GATKVariantContextUtils.SUM_PL_THRESH_NOCALL;
     }
 
     /**

@@ -9,7 +9,7 @@ RUN apt-get install -y \
 
 RUN mkdir /opt/dpgt-src
 COPY src /opt/dpgt-src/src
-COPY test /opt/dpgt-src/test
+# COPY test /opt/dpgt-src/test
 
 WORKDIR /opt/dpgt-src
 # Clean the vendor library to prevent the contamination of building DPGT in this image.

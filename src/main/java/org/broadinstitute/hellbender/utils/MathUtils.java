@@ -1100,6 +1100,14 @@ public final class MathUtils {
         }
     }
 
+    public static double pow10OfPhredScore(int phredScore) {
+        if (phredScore < Pow10Table.POW10TABLE_SIZE) {
+            return Pow10Table.get(phredScore);
+        } else {
+            return Math.pow(10.0f, -0.1*phredScore);
+        }
+    }
+
     public static int minElement(final int [] array, int start, int finish) {
         int min = Integer.MAX_VALUE;
         for (int i = start; i < finish; ++i) {
