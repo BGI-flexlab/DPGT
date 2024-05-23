@@ -27,7 +27,7 @@ RUN rm -r /opt/dpgt-src
 
 WORKDIR /
 # copy dpgt jar
-COPY target/dpgt-1.3.2.0.jar /opt/dpgt/dpgt-1.3.2.0.jar
+COPY target/dpgt-1.3.3.0.jar /opt/dpgt/dpgt-1.3.3.0.jar
 
 # set environment variable to load dpgt cpp library and jemalloc library
 ENV LD_LIBRARY_PATH=/opt/dpgt/lib:$LD_LIBRARY_PATH
