@@ -13,6 +13,7 @@ public class JointCallingSparkConsts {
     public static final String OUTPUT_NAME = "result.vcf.gz";               // outdir/result.vcf.gz
     public static final String OUTPUT_PREFIX = "result";                    // outdir/result.*.vcf.gz
     public static final String OUTPUT_SUFFIX = "vcf.gz";                    // outdir/result.*.vcf.gz
+    public static final String VCF_PAIRS = "vcf_and_index_pairs.list";      // outdir/vcf_and_index_pairs.list
     public static final String JOB_STATE = "job_state";                     // outdir/job_state
     public static final Integer GET_FUTURE_TIMEOUT = 100;                   // max time out value in milliseconds
     public static final String COMBINE_HEADER_STATE_FILE = "combine_vcf_header.json";      // outdir/job_state/combine_vcf_header.json

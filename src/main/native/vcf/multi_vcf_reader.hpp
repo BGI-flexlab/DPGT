@@ -21,6 +21,9 @@ class MultiVcfReader {
 public:
     MultiVcfReader() = default;
     MultiVcfReader(std::vector<std::string> files, bool require_index=false);
+    MultiVcfReader(std::vector<std::string> files,
+        std::vector<std::string> index_files,
+        bool require_index=false, bool use_lix=false);
 
     MultiVcfReader(const MultiVcfReader &multi_vcf_reader) = delete;
     MultiVcfReader(MultiVcfReader &&multi_vcf_reader) noexcept;
@@ -55,6 +58,7 @@ public:
 
 private:
     std::vector<std::string> files_;
+    std::vector<std::string> index_files_;
     std::vector<VcfReader *> readers_;
     std::priority_queue<VcfIBuffer *,
         std::vector<VcfIBuffer *>, VcfIBufferGreater> buffers_;
@@ -70,6 +74,10 @@ private:
         bcf_hdr_destroy(header_);
         if (vcf_key_maps_) delete vcf_key_maps_;
     }
+
+    void Open(const std::vector<std::string> &files,
+        const std::vector<std::string> &index_files,
+        bool require_index, bool use_lix);
 };
 
 

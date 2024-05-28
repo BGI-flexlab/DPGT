@@ -55,7 +55,10 @@ public class JointCallingSpark {
         CombineVCFHeaderJob combineVCFHeaderJob = new CombineVCFHeaderJob(vcfpathsRDDPartitionByCombineParts, jcOptions);
         final String genotypeHeader = combineVCFHeaderJob.run();
 
-        JavaRDD<String> vcfpathsRDDPartitionByJobs = sc.textFile(addFilePrefixIfNeed(jcOptions.input), jcOptions.jobs);
+        jcOptions.makeVcfPairs();
+        JavaRDD<String> vcfPairsRDDPartitionByCombineParts = sc.textFile(addFilePrefixIfNeed(jcOptions.vcfPairsPath), jcOptions.numCombinePartitions);
+
+        JavaRDD<String> vcfPairsRDDPartitionByJobs = sc.textFile(addFilePrefixIfNeed(jcOptions.vcfPairsPath), jcOptions.jobs);
 
         int s = 0; // first interval that have not beed traversed
         int n = 0;
@@ -106,7 +109,7 @@ public class JointCallingSpark {
             }
 
             logger.info("Finding variant sites in {} ({})", interval.toString(), cycleStr);
-            VariantFinderJob variantFinderJob = new VariantFinderJob(vcfpathsRDDPartitionByJobs, jcOptions, sc, i, interval);
+            VariantFinderJob variantFinderJob = new VariantFinderJob(vcfPairsRDDPartitionByJobs, jcOptions, sc, i, interval);
             BitSet variantSiteSetData = variantFinderJob.run();
             updateGenotypeAndConcatVcfJobs(allGenotyperJobs, allConcatVcfJobs, intervalsToTravers, jcOptions, genotypeHeader, sc, JointCallingSparkConsts.GET_FUTURE_TIMEOUT);
             
@@ -117,7 +120,7 @@ public class JointCallingSpark {
 
             logger.info("Combining gvcfs in {} ({})", interval.toString(), cycleStr);
             CombineGVCFsOnSiteJob combineGVCFsOnSiteJob = new CombineGVCFsOnSiteJob(
-                vcfpathsRDDPartitionByCombineParts, jcOptions, sc, i, interval, PARTITION_COEFFICIENT, variantSiteSetData);
+                vcfPairsRDDPartitionByCombineParts, jcOptions, sc, i, interval, PARTITION_COEFFICIENT, variantSiteSetData);
             combineGVCFsOnSiteJob.run();
             updateGenotypeAndConcatVcfJobs(allGenotyperJobs, allConcatVcfJobs, intervalsToTravers, jcOptions, genotypeHeader, sc, JointCallingSparkConsts.GET_FUTURE_TIMEOUT);
 

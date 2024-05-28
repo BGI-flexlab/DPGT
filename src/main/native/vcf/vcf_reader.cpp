@@ -3,9 +3,12 @@
 #include "htslib/tbx.h"
 #include "htslib/vcf.h"
 #include "htslib/kseq.h"
+#include "lix/lix.h"
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <unistd.h>
 
 
 #define MAX_CSI_COOR ((1LL << (14 + 30)) - 1)
@@ -17,8 +20,10 @@ VcfReader::VcfReader(VcfReader &&reader) noexcept
     this->file_ptr_ = reader.file_ptr_;
     this->tbx_idx_ = reader.tbx_idx_;
     this->bcf_idx_ = reader.bcf_idx_;
+    this->lix_idx_ = reader.lix_idx_;
     this->header_ = reader.header_;
     this->itr_ = reader.itr_;
+    this->lix_itr_ = reader.lix_itr_;
     this->streaming_ = reader.streaming_;
     this->tmps_ = reader.tmps_;
 
@@ -26,8 +31,10 @@ VcfReader::VcfReader(VcfReader &&reader) noexcept
     reader.file_ptr_ = nullptr;
     reader.tbx_idx_ = nullptr;
     reader.bcf_idx_ = nullptr;
+    reader.lix_idx_ = nullptr;
     reader.header_ = nullptr;
     reader.itr_ = nullptr;
+    reader.lix_itr_ = nullptr;
     reader.tmps_ = {0, 0, NULL};
 }
 
@@ -41,8 +48,10 @@ VcfReader &VcfReader::operator==(VcfReader &&reader) noexcept {
         this->file_ptr_ = reader.file_ptr_;
         this->tbx_idx_ = reader.tbx_idx_;
         this->bcf_idx_ = reader.bcf_idx_;
+        this->lix_idx_ = reader.lix_idx_;
         this->header_ = reader.header_;
         this->itr_ = reader.itr_;
+        this->lix_itr_ = reader.lix_itr_;
         this->streaming_ = reader.streaming_;
         this->tmps_ = reader.tmps_;
 
@@ -50,41 +59,59 @@ VcfReader &VcfReader::operator==(VcfReader &&reader) noexcept {
         reader.file_ptr_ = nullptr;
         reader.tbx_idx_ = nullptr;
         reader.bcf_idx_ = nullptr;
+        reader.lix_idx_ = nullptr;
         reader.header_ = nullptr;
         reader.itr_ = nullptr;
+        reader.lix_itr_ = nullptr;
         reader.tmps_ = {0, 0, NULL};
     }
     return *this;
 }
 
 
-void VcfReader::Open(const std::string &file_name, bool require_index) {
+void VcfReader::Open(const std::string &file_name, const std::string &index_name,
+    bool require_index, bool use_lix)
+{
+    if (use_lix) {
+        OpenVcfWithLixIdx(file_name, index_name, require_index);
+    } else {
+        OpenVcfWithHtsIdx(file_name, index_name, require_index);
+    }
+}
+
+
+void VcfReader::OpenVcfWithHtsIdx(
+    const std::string &file_name, const std::string &index_name,
+    bool require_index)
+{
     char fmode[5];
     strcpy(fmode, "r");
     vcf_open_mode(fmode+1, file_name.c_str(), NULL);
     file_ptr_ = hts_open(file_name.c_str(), fmode);
     if ( ! file_ptr_ ) {
-        std::cerr << "[VcfReader::Open] Error! Fail to open " << file_name
+        std::cerr << "[VcfReader::OpenVcfWithHtsIdx] Error! Fail to open " << file_name
             << std::endl;
         std::exit(1);
     }
 
     if (require_index) {
         streaming_ = false;
+        const char *idx_fn = NULL;
+        if (!index_name.empty()) idx_fn = index_name.c_str();
         if ( file_ptr_->format.format==vcf )
         {
             if ( file_ptr_->format.compression!=bgzf )
             {
-                std::cerr << "[VcfReader::Open] Error! Require index but"
+                std::cerr << "[VcfReader::OpenVcfWithHtsIdx] Error! Require index but"
                     << " input file is not a bgzip vcf. " << file_name
                     << std::endl;
                 std::exit(1);
             }
 
-            tbx_idx_ = tbx_index_load(file_name.c_str());
+            tbx_idx_ = tbx_index_load2(file_name.c_str(), idx_fn);
             if ( !tbx_idx_ )
             {
-                std::cerr << "[VcfReader::Open] Error! Failed to load tbx "
+                std::cerr << "[VcfReader::OpenVcfWithHtsIdx] Error! Failed to load tbx "
                     << "index. " << file_name << std::endl;
                 std::exit(1);
             }
@@ -95,16 +122,16 @@ void VcfReader::Open(const std::string &file_name, bool require_index) {
         {
             if ( file_ptr_->format.compression!=bgzf )
             {
-                std::cerr << "[VcfReader::Open] Error! Require index but"
+                std::cerr << "[VcfReader::OpenVcfWithHtsIdx] Error! Require index but"
                     << " input file is not a bgzip bcf. " << file_name
                     << std::endl;
                 std::exit(1);
             }
 
-            bcf_idx_ = bcf_index_load(file_name.c_str());
+            bcf_idx_ = bcf_index_load2(file_name.c_str(), idx_fn);
             if ( !bcf_idx_ )
             {
-                std::cerr << "[VcfReader::Open] Error! Failed to load bcf"
+                std::cerr << "[VcfReader::OpenVcfWithHtsIdx] Error! Failed to load bcf"
                     << " index. " << file_name << std::endl;
                 std::exit(1);
             }
@@ -113,7 +140,7 @@ void VcfReader::Open(const std::string &file_name, bool require_index) {
         }
         else
         {
-            std::cerr << "[VcfReader::Open] Error! Wrong input file format. "
+            std::cerr << "[VcfReader::OpenVcfWithHtsIdx] Error! Wrong input file format. "
                 << file_name << std::endl;
             std::exit(1);
         }
@@ -127,7 +154,90 @@ void VcfReader::Open(const std::string &file_name, bool require_index) {
         }
         else
         {
-            std::cerr << "[VcfReader::Open] Error! Wrong input file format. "
+            std::cerr << "[VcfReader::OpenVcfWithHtsIdx] Error! Wrong input file format. "
+                << file_name << std::endl;
+            std::exit(1);
+        }
+    }
+}
+
+
+void VcfReader::OpenVcfWithLixIdx(
+    const std::string &file_name, const std::string &index_name,
+    bool require_index)
+{
+    char fmode[5];
+    strcpy(fmode, "r");
+    vcf_open_mode(fmode+1, file_name.c_str(), NULL);
+    file_ptr_ = hts_open(file_name.c_str(), fmode);
+    if ( ! file_ptr_ ) {
+        std::cerr << "[VcfReader::OpenVcfWithLixIdx] Error! Fail to open "
+            << file_name << std::endl;
+        std::exit(1);
+    }
+
+    if (require_index) {
+        streaming_ = false;
+        std::string idx_fn = "";
+        if (!index_name.empty()) {
+            // use the input index file name
+            idx_fn = index_name;
+        } else {
+            // use the default index file name which is the input file name + .lix
+            idx_fn = file_name + ".lix";
+        }
+
+        if (access(idx_fn.c_str(), F_OK|R_OK) != 0) {
+            std::cerr << "[VcfReader::OpenVcfWithLixIdx] Error! Require index "
+                << "but index file not found or not readable. " << idx_fn
+                << std::endl;
+            std::exit(1);
+        }
+
+        if ( file_ptr_->format.format==vcf )
+        {
+            if ( file_ptr_->format.compression!=bgzf )
+            {
+                std::cerr << "[VcfReader::OpenVcfWithLixIdx] Error! Require index but"
+                    << " input file is not a bgzip vcf. " << file_name
+                    << std::endl;
+                std::exit(1);
+            }
+
+            lix_idx_ = lix_load(idx_fn.c_str());
+            if ( !lix_idx_ )
+            {
+                std::cerr << "[VcfReader::OpenVcfWithLixIdx] Error! Failed to load lix "
+                    << "index. " << file_name << std::endl;
+                std::exit(1);
+            }
+
+            header_ = bcf_hdr_read(file_ptr_);
+        }
+        else if ( file_ptr_->format.format==bcf )
+        {
+            std::cerr << "[VcfReader::OpenVcfWithLixIdx] Error! lix index not "
+                << " support bcf file. " << file_name
+                << std::endl;
+            std::exit(1);
+        }
+        else
+        {
+            std::cerr << "[VcfReader::OpenVcfWithLixIdx] Error! Wrong input file format. "
+                << file_name 
+                << " The input file should be a vcf or bgzip vcf file."
+                << std::endl;
+            std::exit(1);
+        }
+    } else {
+        if ( file_ptr_->format.format==bcf ||
+            file_ptr_->format.format==vcf )
+        {
+            header_ = bcf_hdr_read(file_ptr_);
+        }
+        else
+        {
+            std::cerr << "[VcfReader::OpenVcfWithLixIdx] Error! Wrong input file format. "
                 << file_name << std::endl;
             std::exit(1);
         }
@@ -136,16 +246,37 @@ void VcfReader::Open(const std::string &file_name, bool require_index) {
 
 
 VcfReader &VcfReader::Queryi(int32_t tid, int64_t start, int64_t end) {
+    if (lix_idx_) {
+        return QueryiWithLixIdx(tid, start, end);
+    } else {
+        return QueryiWithHtsIdx(tid, start, end);
+    }
+}
+
+
+VcfReader &VcfReader::Querys(
+    const std::string &chrom, int64_t start, int64_t end)
+{
+    if (lix_idx_) {
+        return QuerysWithLixIdx(chrom, start, end);
+    } else {
+        return QuerysWithHtsIdx(chrom, start, end);
+    }
+}
+
+
+VcfReader &VcfReader::QueryiWithHtsIdx(int32_t tid, int64_t start, int64_t end)
+{
     query_status_ = VcfReaderQueryStatus::NOT;
 
     if (!file_ptr_) {
-        std::cerr << "[VcfReader::Queryi] Error! Can not query on reader "
+        std::cerr << "[VcfReader::QueryiWithHtsIdx] Error! Can not query on reader "
             << "not opened." << std::endl;
         std::exit(1);
     }
 
     if (streaming_) {
-        std::cerr << "[VcfReader::Queryi] Error! This reader is not support"
+        std::cerr << "[VcfReader::QueryiWithHtsIdx] Error! This reader is not support"
             << " random query. vcf file: " << getFileName() << std::endl;
         std::exit(1);
     }
@@ -168,7 +299,7 @@ VcfReader &VcfReader::Queryi(int32_t tid, int64_t start, int64_t end) {
             // header) to tabix tid(index in bgzip(first column index))
             const char *name = bcf_hdr_id2name(header_, tid);
             if (name == NULL) {
-                std::cerr << "[VcfReader::Queryi] Error! Failed to convert bcf"
+                std::cerr << "[VcfReader::QueryiWithHtsIdx] Error! Failed to convert bcf"
                     " tid:" << tid << " to name. vcf file: "
                     << getFileName() << std::endl;
                 std::exit(1);
@@ -196,40 +327,105 @@ VcfReader &VcfReader::Queryi(int32_t tid, int64_t start, int64_t end) {
 }
 
 
-VcfReader &VcfReader::Querys(
-    const std::string &chrom, int64_t start, int64_t end)
+VcfReader &VcfReader::QuerysWithHtsIdx(const std::string &chrom, int64_t start, int64_t end)
 {
     if (!file_ptr_) {
-        std::cerr << "[VcfReader::Querys] Error! Can not query on reader "
+        std::cerr << "[VcfReader::QuerysWithHtsIdx] Error! Can not query on reader "
             << "not opened." << std::endl;
         std::exit(1);
     }
 
     if (streaming_) {
-        std::cerr << "[VcfReader::Querys] Error! This reader is not support"
+        std::cerr << "[VcfReader::QuerysWithHtsIdx] Error! This reader is not support"
             << " random query. vcf file: " << getFileName() << std::endl;
         std::exit(1);
     }
 
     int32_t tid;
-    // if (tbx_idx_) {
-    //     tid = tbx_name2id(tbx_idx_, chrom.c_str());
-    //     if (tid == -1) {
-    //         std::cerr << "[VcfReader::Querys] Error! chrom not present in "
-    //             << "this file." << std::endl;
-    //         std::exit(1);
-    //     }
-    // } else {
     tid = bcf_hdr_name2id(header_, chrom.c_str());
     if (tid == -1) {
-        std::cerr << "[VcfReader::Querys] Error! chrom " << chrom
+        std::cerr << "[VcfReader::QuerysWithHtsIdx] Error! chrom " << chrom
             << " not present in vcf/bcf header. vcf file: "
             << getFileName() << std::endl;
         std::exit(1);
     }
-    // }
 
     return Queryi(tid, start, end);
+}
+
+
+VcfReader &VcfReader::QueryiWithLixIdx(int32_t tid, int64_t start, int64_t end)
+{
+    query_status_ = VcfReaderQueryStatus::NOT;
+
+    if (!file_ptr_) {
+        std::cerr << "[VcfReader::QueryiWithLixIdx] Error! Can not query on reader "
+            << "not opened." << std::endl;
+        std::exit(1);
+    }
+
+    if (streaming_) {
+        std::cerr << "[VcfReader::QueryiWithLixIdx] Error! This reader is not support"
+            << " random query. vcf file: " << getFileName() << std::endl;
+        std::exit(1);
+    }
+
+    if ( lix_itr_ )
+    {
+        lix_iter_destroy(lix_itr_);        
+        lix_itr_ = nullptr;
+    }
+
+    const char *contig_name = bcf_hdr_id2name(header_, tid);
+    if (contig_name == NULL) {
+        std::cerr << "[VcfReader::QueryiWithLixIdx] Error! Failed to convert bcf"
+            " tid:" << tid << " to name. vcf file: "
+            << getFileName() << std::endl;
+        std::exit(1);
+    }
+
+    lix_itr_ = lix_query(lix_idx_, contig_name, start, end);
+    if (lix_itr_) {
+        query_status_ = VcfReaderQueryStatus::SUCCESS;
+    } else {
+        query_status_ = VcfReaderQueryStatus::FAIL;
+    }
+
+    return *this;
+}
+
+
+VcfReader &VcfReader::QuerysWithLixIdx(
+    const std::string &chrom, int64_t start, int64_t end)
+{
+    query_status_ = VcfReaderQueryStatus::NOT;
+
+    if (!file_ptr_) {
+        std::cerr << "[VcfReader::QuerysWithLixIdx] Error! Can not query on reader "
+            << "not opened." << std::endl;
+        std::exit(1);
+    }
+
+    if (streaming_) {
+        std::cerr << "[VcfReader::QuerysWithLixIdx] Error! This reader is not support"
+            << " random query. vcf file: " << getFileName() << std::endl;
+        std::exit(1);
+    }
+
+    if ( lix_itr_ )
+    {
+        lix_iter_destroy(lix_itr_);
+        lix_itr_ = nullptr;
+    }
+
+    lix_itr_ = lix_query(lix_idx_, chrom.c_str(), start, end);
+    if (lix_itr_) {
+        query_status_ = VcfReaderQueryStatus::SUCCESS;
+    } else {
+        query_status_ = VcfReaderQueryStatus::FAIL;
+    }
+
+    return *this;
 }
 
 
@@ -317,7 +513,7 @@ bcf1_t *VcfReader::Read(bcf1_t *record) {
                 << ". vcf file: " << getFileName() << std::endl;
             std::exit(1);
         }
-    } else {  // bcf file
+    } else if ( bcf_idx_ ) {  // bcf file
         if (query_status_ == VcfReaderQueryStatus::FAIL) {
             // Queryi has been called, but failed, return nullptr
             return nullptr;
@@ -337,6 +533,24 @@ bcf1_t *VcfReader::Read(bcf1_t *record) {
             }
         }
         bcf_subset_format(header_, record);
+    } else if ( lix_idx_ ) {
+        if (query_status_ == VcfReaderQueryStatus::FAIL) {
+            // Queryi has been called, but failed, return nullptr
+            return nullptr;
+        }
+        while ((ret=lix_iter_next(lix_itr_, file_ptr_, header_, record)) < 0) {
+            if (intervals_ != nullptr && intervals_iter_ != intervals_->end()) {
+                const SimpleInterval &interval = *intervals_iter_;
+                Queryi(interval.tid, interval.start, interval.end);
+                ++intervals_iter_;
+            } else {
+                return nullptr;  // end of query interval
+            }
+        }
+    } else {
+        std::cerr << "[VcfReader::Read] Error! Reader is not streaming and no index is available. "
+            << "vcf file: " << getFileName() << std::endl;
+        std::exit(1);
     }
     return record;
 }

@@ -1,16 +1,23 @@
 #include <cstddef>
 #include <cstdint>
+#include <string>
+#include <vector>
 #include "vcf/vcf_reader.hpp"
 #include "variant_site_finder.hpp"
 
 
 VariantSiteSet FindVariantSite(const std::vector<std::string> &vcfpaths,
+    const std::vector<std::string> &indexpaths, bool use_lix,
     const char *chrom, int64_t start, int64_t end)
 {
     int64_t end1 = end + 1;
     VariantSiteSet vs_set{start, end};
     for (size_t i = 0; i < vcfpaths.size(); ++i) {
-        VcfReader reader{vcfpaths[i], true};
+        std::string indexpath = "";
+        if (!indexpaths.empty()) {
+            indexpath = indexpaths[i];
+        }
+        VcfReader reader{vcfpaths[i], indexpath, true, use_lix};
         reader.Querys(chrom, start, end);
         bcf1_t *record = bcf_init1();
         while (reader.Read(record)) {

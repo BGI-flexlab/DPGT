@@ -5,27 +5,29 @@
 #include <vector>
 #include <cstdio>
 #include "VariantSiteFinder.h"
+#include "jni.h"
 #include "jni_md.h"
 #include "variant_site_finder.hpp"
+#include "common/jni_utils.hpp"
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
 
 JNIEXPORT void JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_VariantSiteFinder_FindVariantSite
-    (JNIEnv * env, jobject java_this, jobjectArray vcfpaths, jstring outpath, jstring chrom, jlong start, jlong end)
+    (JNIEnv * env, jobject java_this, jobjectArray vcfpaths, jobjectArray indexpaths,
+    jint use_lix, jstring outpath, jstring chrom, jlong start, jlong end)
 {
     int vcf_count = env->GetArrayLength(vcfpaths);
     std::vector<std::string> vcfpaths_vec(vcf_count, "");
-    for (int i = 0; i < vcf_count; ++i) {
-        jstring vcfpath = (jstring) (env->GetObjectArrayElement(vcfpaths, i));
-        const char *vcfpath_cstr = env->GetStringUTFChars(vcfpath, NULL);
-        vcfpaths_vec[i] = vcfpath_cstr;
-        env->ReleaseStringUTFChars(vcfpath, vcfpath_cstr);
-    }
+    JavaStringArrayToCppVec(env, vcfpaths, vcfpaths_vec);
+
+    int index_count = env->GetArrayLength(indexpaths);
+    std::vector<std::string> indexpaths_vec(index_count, "");
+    JavaStringArrayToCppVec(env, indexpaths, indexpaths_vec);
 
     const char *chrom_cstr = env->GetStringUTFChars(chrom, NULL);
     
     std::vector<uint8_t> site_bitset_as_bytes = FindVariantSite(
-        vcfpaths_vec, chrom_cstr, start, end).toUint8Vector();
+        vcfpaths_vec, indexpaths_vec, use_lix, chrom_cstr, start, end).toUint8Vector();
     
     // serialize to disk
     const char *outpath_cstr = env->GetStringUTFChars(outpath, NULL);

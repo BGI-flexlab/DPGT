@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <sys/types.h>
 #include <vector>
 #include "vcf/hts_vcf_utils.hpp"
@@ -12,8 +13,29 @@
 MultiVcfReader::MultiVcfReader(std::vector<std::string> files,
     bool require_index):files_(std::move(files))
 {
+    Open(files_, {}, require_index, false);
+}
+
+
+MultiVcfReader::MultiVcfReader(std::vector<std::string> files,
+    std::vector<std::string> index_files, bool require_index, bool use_lix):
+    files_(std::move(files)), index_files_(std::move(index_files))
+{
+    Open(files_, index_files_, require_index, use_lix);
+}
+
+
+void MultiVcfReader::Open(const std::vector<std::string> &files,
+    const std::vector<std::string> &index_files,
+    bool require_index, bool use_lix)
+{
     for (size_t i = 0; i < files_.size(); ++i) {
-        VcfReader *reader = new VcfReader(files_[i], require_index);
+        std::string idx = "";
+        if (!index_files.empty()) {
+            idx = index_files[i];
+        }
+        VcfReader *reader = new VcfReader(files[i], idx,
+            require_index, use_lix);
         readers_.push_back(reader);
         VcfIBuffer *buffer = new VcfIBuffer(reader);
         if (buffer->First() != nullptr) {
@@ -35,7 +57,6 @@ MultiVcfReader::MultiVcfReader(std::vector<std::string> files,
     for (auto &b: buffers_vec_) {
         b->setIdTables(vcf_key_maps_);
     }
-
 }
 
 

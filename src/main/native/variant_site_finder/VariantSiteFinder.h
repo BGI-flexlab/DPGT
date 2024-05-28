@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     org_bgi_flexlab_dpgt_jointcalling_VariantSiteFinder
  * Method:    FindVariantSite
- * Signature: ([Ljava/lang/String;Ljava/lang/String;JJ)[B
+ * Signature: ([Ljava/lang/String;[Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;JJ)V
  */
 JNIEXPORT void JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_VariantSiteFinder_FindVariantSite
-  (JNIEnv *, jobject, jobjectArray, jstring, jstring, jlong, jlong);
+  (JNIEnv *, jobject, jobjectArray, jobjectArray, jint, jstring, jstring, jlong, jlong);
 
 #ifdef __cplusplus
 }

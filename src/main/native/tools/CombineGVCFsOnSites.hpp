@@ -10,10 +10,10 @@ extern "C" {
 /*
  * Class:     org_bgi_flexlab_dpgt_jointcalling_CombineGVCFsOnSites
  * Method:    Combine
- * Signature: ([Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;[BLjava/lang/String;JJ)V
+ * Signature: ([Ljava/lang/String;[Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;[BLjava/lang/String;JJ)V
  */
 JNIEXPORT void JNICALL Java_org_bgi_flexlab_dpgt_jointcalling_CombineGVCFsOnSites_Combine
-  (JNIEnv *, jobject, jobjectArray, jstring, jstring, jbyteArray, jstring, jlong, jlong);
+  (JNIEnv *, jobject, jobjectArray, jobjectArray, jint, jstring, jstring, jbyteArray, jstring, jlong, jlong);
 
 #ifdef __cplusplus
 }

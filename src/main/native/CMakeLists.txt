@@ -118,6 +118,7 @@ add_library(cdpgt SHARED
     common/simple_interval.cpp
     common/fastx_seq.cpp
     common/fastx_suffix.cpp
+    common/jni_utils.cpp
     common/int_to_double_cache.cpp
     common/math_utils.cpp
     common/reference_context.cpp
@@ -130,6 +131,7 @@ add_library(cdpgt SHARED
     genotyper/genotype_likelihoods.cpp
     genotyper/genotype.cpp
     genotyper/flat_genotype.cpp
+    lix/lix.c
     tools/combine_gvcfs_on_sites.cpp
     tools/CombineGVCFsOnSites.cpp
     tools/VCFHeaderCombiner.cpp
@@ -159,6 +161,15 @@ target_link_libraries(cdpgt
     ${HTSLIB_LIB}
     ${LIBDEFLATE_LIB}
     ${Boost_LIBRARIES}
+    z m bz2 lzma pthread curl ssl crypto)
+
+add_executable(tbi2lix
+    lix/tbi2lix.c
+    lix/lix.c)
+
+target_link_libraries(tbi2lix
+    ${HTSLIB_LIB}
+    ${LIBDEFLATE_LIB}
     z m bz2 lzma pthread curl ssl crypto)
 
 
@@ -229,7 +240,7 @@ target_link_libraries(cdpgt
 #     common/simple_interval.cpp
 #     test/test_vcf_reader.cpp
 #     vcf/vcf_reader.cpp
-#     vcf/vcf_ibuffer.cpp)
+#     lix/lix.c)
 
 # target_link_libraries(test_vcf_reader
 #     ${HTSLIB_LIB}

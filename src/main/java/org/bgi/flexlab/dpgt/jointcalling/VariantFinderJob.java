@@ -12,16 +12,16 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 
 public class VariantFinderJob extends DPGTJob<BitSet> {
-    private JavaRDD<String> vcfpathsRDDPartitionByJobs;
+    private JavaRDD<String> vcfPairsRDDPartitionByJobs;
     private JointCallingSparkOptions jcOptions;
     private JavaSparkContext sc;
     private int idx;
     private SimpleInterval interval;
     public final File variantSiteDir;
 
-    public VariantFinderJob(final JavaRDD<String> vcfpathsRDDPartitionByJobs, final JointCallingSparkOptions jcOptions,
+    public VariantFinderJob(final JavaRDD<String> vcfPairsRDDPartitionByJobs, final JointCallingSparkOptions jcOptions,
         final JavaSparkContext sc, final int idx, final SimpleInterval interval) {
-        this.vcfpathsRDDPartitionByJobs = vcfpathsRDDPartitionByJobs;
+        this.vcfPairsRDDPartitionByJobs = vcfPairsRDDPartitionByJobs;
         this.jcOptions = jcOptions;
         this.sc = sc;
         this.idx = idx;
@@ -36,8 +36,8 @@ public class VariantFinderJob extends DPGTJob<BitSet> {
 
     public BitSet work() {
         final String variantSitePrefix = variantSiteDir.getAbsolutePath()+"/"+JointCallingSparkConsts.VARIANT_SITE_PREFIX;
-        List<String> variantSiteFiles = vcfpathsRDDPartitionByJobs
-            .mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(variantSitePrefix, interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false)
+        List<String> variantSiteFiles = vcfPairsRDDPartitionByJobs
+            .mapPartitionsWithIndex(new VariantSiteFinderSparkFunc(variantSitePrefix, this.jcOptions.useLix ? 1 : 0, interval.getContig(), interval.getStart()-1, interval.getEnd()-1), false)
             .filter(x -> {return !x.equals("null");})
             .collect();
         

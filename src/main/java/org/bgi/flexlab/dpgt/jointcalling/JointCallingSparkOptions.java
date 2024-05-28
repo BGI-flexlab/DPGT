@@ -3,8 +3,10 @@ import org.broadinstitute.hellbender.tools.walkers.genotyper.GenotypeCalculation
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.Serializable;
@@ -17,6 +19,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.commons.cli.*;
+
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SAMSequenceRecord;
 import org.broadinstitute.hellbender.engine.ReferenceDataSource;
@@ -38,7 +41,7 @@ public class JointCallingSparkOptions implements Serializable {
     private HelpFormatter helpFormatter = new HelpFormatter();
 
     // program meta data
-    private static final String VERSION = "1.3.3.0";
+    private static final String VERSION = "1.3.3.0-lix";
 
     private ReferenceDataSource referenceDataSrc = null;
     private SAMSequenceDictionary sequenceDict = null;
@@ -46,6 +49,9 @@ public class JointCallingSparkOptions implements Serializable {
 
     // options
     public String input = null;             // input gvcf list in a file
+    public String indices = null;           // input gvcf index list in a file
+    public boolean useLix = false;          // use lix index or vcf tbi/csi index, true means use lix index, false means use vcf tbi/csi index
+    public String vcfPairsPath = null;      // vcf file and index pairs file path
     public String output = null;            // output directory
     public String outputPath = null;        // output vcf file name
     public String outputPrefix = null;      // output vcf file prefix
@@ -69,6 +75,8 @@ public class JointCallingSparkOptions implements Serializable {
 
     public JointCallingSparkOptions() {
         addOption("i", "input", true, "input gvcf list in a file, one gvcf file per line.", true, "FILE");
+        addOption(null, "indices", true, "input gvcf indices in a file, one gvcf index file per line.", false, "FILE");
+        addOption(null, "use-lix", true, "use lix index(true) or vcf tbi/csi index(false). Possible values: true, false. [false]", false, "Boolean");
         addOption("o", "output", true, "output directory.", true, "DIR");
         addOption("r", "reference", true, "reference fasta file.", true, "FILE");
         addOption("l", "target-regions", true, "target regions to process.", false, "STRING");
@@ -124,6 +132,8 @@ public class JointCallingSparkOptions implements Serializable {
         }
 
         this.input = getOptionValue("i", null);
+        this.indices = getOptionValue("indices", null);
+        this.useLix = getOptionBooleanValue("use-lix", false);
         this.output = getOptionValue("o", null);
         this.reference = getOptionValue("r", null);
         this.targetRegionStrs = getOptionValues("l", null);
@@ -280,6 +290,71 @@ public class JointCallingSparkOptions implements Serializable {
 
     public String getOutputPrefix() {
         return outputPrefix;
+    }
+
+    /**
+     * make vcf file and index pairs and output the pairs into a txt file
+     * @return
+     */
+    public void makeVcfPairs() {
+        ArrayList<String> vcfPairs = new ArrayList<>();
+        try {
+            FileReader inputReader = new FileReader(new File(this.input));
+            BufferedReader bufferedInputReader = new BufferedReader(inputReader);
+            if (this.indices != null) {
+                FileReader indexReader = new FileReader(new File(this.indices));
+                BufferedReader bufferedIndexReader = new BufferedReader(indexReader);
+                try {
+                    String line = null;
+                    while ((line = bufferedInputReader.readLine()) != null) {
+                        String vcf = line.trim();
+                        String index = bufferedIndexReader.readLine().trim();
+                        vcfPairs.add(vcf + "," + index);
+                    }
+                    bufferedIndexReader.close();
+                } catch (IOException e) {
+                    logger.error("Failed to read line from list file vcf:{} or index:{}. {}",
+                        this.input, this.indices, e.getMessage());
+                    System.exit(1);
+                }
+            } else {
+                try {
+                    String line = null;
+                    while ((line = bufferedInputReader.readLine()) != null) {
+                        String vcf = line.trim();
+                        vcfPairs.add(vcf);
+                    }
+                    bufferedInputReader.close();
+                } catch (IOException e) {
+                    logger.error("Failed to read line from input gvcf list file {}. {}",
+                        this.input, e.getMessage());
+                    System.exit(1);
+                }
+            }
+        } catch (FileNotFoundException e) {
+            logger.error("Failed to open list file vcf: {}, index: {}. {}",
+                this.input, this.indices, e.getMessage());
+            System.exit(1);
+        }
+        
+        this.vcfPairsPath = Paths.get(this.output, JointCallingSparkConsts.VCF_PAIRS).toString();
+        try {
+            FileWriter writer = new FileWriter(new File(this.vcfPairsPath));
+            BufferedWriter bufferedWriter = new BufferedWriter(writer);
+            try {
+                for (String pair: vcfPairs) {
+                    bufferedWriter.write(pair);
+                    bufferedWriter.newLine();
+                }
+                bufferedWriter.close();
+            } catch (IOException e) {
+                logger.error("Failed to write vcf pairs into file {}. {}", this.vcfPairsPath, e.getMessage());
+                System.exit(1);
+            }
+        } catch (IOException e) {
+            logger.error("Failed to open file {}. {}", this.vcfPairsPath, e.getMessage());
+            System.exit(1);
+        }
     }
 
     protected String[] getOptionValues(String opt, String[] defaultValue) {
