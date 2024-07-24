@@ -240,8 +240,14 @@ import java.util.*;
             return rootVC;
         }
 
-        int plCount = rootVC.getGenotype(0).getPL().length;
         final int nAlts = rootVC.getNAlleles() - 1;
+        int plCount = nAlts+2; // default plCount has no means, the real plCount is the first non-null genotype's pl length
+        for (final Genotype g: rootVC.getGenotypes()) {
+            if (g.getPL() != null) {
+                plCount = g.getPL().length;
+                break;
+            }
+        }
         BialleicGLIndices bialleicGLIndices = getBialleicGLIndices(plCount, altAlleleIndex, nAlts);
         final ArrayList<Genotype> biallelicGenotypes = new ArrayList<>(rootVC.getNSamples());
         final int[] XBpLvalues = new int[nAlts];
@@ -249,7 +255,7 @@ import java.util.*;
         for ( final Genotype g : rootVC.getGenotypes() ) {
             // biallelicGenotypes.add(combineGLsPrecise(g, altAlleleIndex, nAlts));
 
-            if (g.getPL().length != plCount) {
+            if (g.getPL() != null && g.getPL().length != plCount) {
                 throw new IllegalStateException("PL length must be equal for one VC.");
             }
             biallelicGenotypes.add(

@@ -55,10 +55,9 @@ public class JointCallingSpark {
         CombineVCFHeaderJob combineVCFHeaderJob = new CombineVCFHeaderJob(vcfpathsRDDPartitionByCombineParts, jcOptions);
         final String genotypeHeader = combineVCFHeaderJob.run();
 
-        jcOptions.makeVcfPairs();
-        JavaRDD<String> vcfPairsRDDPartitionByCombineParts = sc.textFile(addFilePrefixIfNeed(jcOptions.vcfPairsPath), jcOptions.numCombinePartitions);
-
-        JavaRDD<String> vcfPairsRDDPartitionByJobs = sc.textFile(addFilePrefixIfNeed(jcOptions.vcfPairsPath), jcOptions.jobs);
+        // not use textFile to partition vcfs to avoid uneven partitions, partition List instead
+        JavaRDD<String> vcfPairsRDDPartitionByCombineParts = sc.parallelize(jcOptions.vcfPairs, jcOptions.numCombinePartitions);
+        JavaRDD<String> vcfPairsRDDPartitionByJobs = sc.parallelize(jcOptions.vcfPairs, jcOptions.jobs);
 
         int s = 0; // first interval that have not beed traversed
         int n = 0;

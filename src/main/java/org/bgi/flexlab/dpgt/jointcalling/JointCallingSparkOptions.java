@@ -52,6 +52,7 @@ public class JointCallingSparkOptions implements Serializable {
     public String indices = null;           // input gvcf index list in a file
     public boolean useLix = false;          // use lix index or vcf tbi/csi index, true means use lix index, false means use vcf tbi/csi index
     public String vcfPairsPath = null;      // vcf file and index pairs file path
+    public List<String> vcfPairs = null;    // vcf file and index pairs in a List
     public String output = null;            // output directory
     public String outputPath = null;        // output vcf file name
     public String outputPrefix = null;      // output vcf file prefix
@@ -201,6 +202,8 @@ public class JointCallingSparkOptions implements Serializable {
 
         this.outputPath = Paths.get(output, JointCallingSparkConsts.OUTPUT_NAME).toString();
         this.outputPrefix = Paths.get(output, JointCallingSparkConsts.OUTPUT_PREFIX).toString();
+
+        this.vcfPairs = makeVcfPairs();
     }
 
     private void addOption(final String opt, final String longOpt, final boolean hasArg, final String description, final boolean isRequired, final String argName) {
@@ -296,7 +299,7 @@ public class JointCallingSparkOptions implements Serializable {
      * make vcf file and index pairs and output the pairs into a txt file
      * @return
      */
-    public void makeVcfPairs() {
+    public List<String> makeVcfPairs() {
         ArrayList<String> vcfPairs = new ArrayList<>();
         try {
             FileReader inputReader = new FileReader(new File(this.input));
@@ -355,6 +358,8 @@ public class JointCallingSparkOptions implements Serializable {
             logger.error("Failed to open file {}. {}", this.vcfPairsPath, e.getMessage());
             System.exit(1);
         }
+
+        return vcfPairs;
     }
 
     protected String[] getOptionValues(String opt, String[] defaultValue) {
