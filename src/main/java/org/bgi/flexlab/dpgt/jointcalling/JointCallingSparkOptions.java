@@ -340,6 +340,12 @@ public class JointCallingSparkOptions implements Serializable {
             System.exit(1);
         }
         
+        // outdir
+        File outputDir = new File(this.output);
+        if (!outputDir.exists()) {
+            outputDir.mkdirs();
+        }
+        
         this.vcfPairsPath = Paths.get(this.output, JointCallingSparkConsts.VCF_PAIRS).toString();
         try {
             FileWriter writer = new FileWriter(new File(this.vcfPairsPath));
