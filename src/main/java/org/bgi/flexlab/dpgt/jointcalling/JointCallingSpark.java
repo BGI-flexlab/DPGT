@@ -50,7 +50,10 @@ public class JointCallingSpark {
         NativeLibraryLoader.isLocal = jcOptions.uselocalMaster;
         JavaSparkContext sc = new JavaSparkContext(conf);
 
-        JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc.textFile(addFilePrefixIfNeed(jcOptions.input), jcOptions.numCombinePartitions);
+        // repartition vcf paths to avoid uneven partitions
+        JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc
+            .textFile(addFilePrefixIfNeed(jcOptions.input), jcOptions.numCombinePartitions)
+            .repartition(jcOptions.numCombinePartitions);
 
         CombineVCFHeaderJob combineVCFHeaderJob = new CombineVCFHeaderJob(vcfpathsRDDPartitionByCombineParts, jcOptions);
         final String genotypeHeader = combineVCFHeaderJob.run();
