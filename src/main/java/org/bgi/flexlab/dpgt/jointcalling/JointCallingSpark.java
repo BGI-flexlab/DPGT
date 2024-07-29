@@ -50,18 +50,6 @@ public class JointCallingSpark {
         NativeLibraryLoader.isLocal = jcOptions.uselocalMaster;
         JavaSparkContext sc = new JavaSparkContext(conf);
 
-        // repartition vcf paths to avoid uneven partitions
-        JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc
-            .textFile(addFilePrefixIfNeed(jcOptions.input), jcOptions.numCombinePartitions)
-            .repartition(jcOptions.numCombinePartitions);
-
-        CombineVCFHeaderJob combineVCFHeaderJob = new CombineVCFHeaderJob(vcfpathsRDDPartitionByCombineParts, jcOptions);
-        final String genotypeHeader = combineVCFHeaderJob.run();
-
-        // not use textFile to partition vcfs to avoid uneven partitions, partition List instead
-        JavaRDD<String> vcfPairsRDDPartitionByCombineParts = sc.parallelize(jcOptions.vcfPairs, jcOptions.numCombinePartitions);
-        JavaRDD<String> vcfPairsRDDPartitionByJobs = sc.parallelize(jcOptions.vcfPairs, jcOptions.jobs);
-
         int s = 0; // first interval that have not beed traversed
         int n = 0;
         logger.info("Finding first interval to traverse ...");
@@ -85,6 +73,18 @@ public class JointCallingSpark {
                 jcOptions.getOutputVCFPath(), jcOptions.getOutputVCFPath());
             System.exit(1);
         }
+
+        // repartition vcf paths to avoid uneven partitions
+        JavaRDD<String> vcfpathsRDDPartitionByCombineParts = sc
+            .textFile(addFilePrefixIfNeed(jcOptions.input), jcOptions.numCombinePartitions)
+            .repartition(jcOptions.numCombinePartitions);
+
+        CombineVCFHeaderJob combineVCFHeaderJob = new CombineVCFHeaderJob(vcfpathsRDDPartitionByCombineParts, jcOptions);
+        final String genotypeHeader = combineVCFHeaderJob.run();
+
+        // not use textFile to partition vcfs to avoid uneven partitions, partition List instead
+        JavaRDD<String> vcfPairsRDDPartitionByCombineParts = sc.parallelize(jcOptions.vcfPairs, jcOptions.numCombinePartitions);
+        JavaRDD<String> vcfPairsRDDPartitionByJobs = sc.parallelize(jcOptions.vcfPairs, jcOptions.jobs);
 
         TreeMap<Integer, GVCFsSyncGenotyperJob> allGenotyperJobs = new TreeMap<>();
         TreeMap<Integer, ConcatGenotypeGVCFsJob> allConcatVcfJobs = new TreeMap<>();
