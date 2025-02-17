@@ -124,3 +124,6 @@ spark-submit \
     -o result -j 256 -l chr1:1000000-2000000 
 ```
 
+### License
+
+Licensed under the GPLv3 License. See the [LICENSE.txt](./LICENSE.txt) file for details.
