@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Annotate the ID field and attribute overlap FLAGs for a VariantContext against a FeatureContext or a list
@@ -55,7 +56,12 @@ public final class VariantOverlapAnnotator {
     public VariantContext annotateRsID(final FeatureContext featureContext, final VariantContext vcToAnnotate) {
         if ( dbSNP != null ) {
             final SimpleInterval loc = new SimpleInterval(vcToAnnotate);
-            return annotateRsID(featureContext.getValues(dbSNP, loc.getStart()), vcToAnnotate);
+            return annotateRsID(
+                featureContext.getValues(dbSNP, loc)
+                    .stream()
+                    .filter(feat -> feat.getStart() == loc.getStart()).collect(Collectors.toList()),
+                    vcToAnnotate);
+            // return annotateRsID(featureContext.getValues(dbSNP, loc.getStart()), vcToAnnotate);
         } else {
             return vcToAnnotate;
         }
@@ -105,7 +111,10 @@ public final class VariantOverlapAnnotator {
         final SimpleInterval loc = new SimpleInterval(vcToAnnotate);
         for ( final Map.Entry<FeatureInput<VariantContext>, String> overlap : overlaps.entrySet() ) {
             final FeatureInput<VariantContext> fi = overlap.getKey();
-            final List<VariantContext> vcs = featureContext.getValues(fi, loc.getStart());
+            // final List<VariantContext> vcs = featureContext.getValues(fi, loc.getStart());
+            final List<VariantContext> vcs = featureContext.getValues(fi, loc)
+                .stream()
+                .filter(feat -> feat.getStart() == loc.getStart()).collect(Collectors.toList());
             annotated = annotateOverlap(vcs, overlap.getValue(), annotated);
         }
 

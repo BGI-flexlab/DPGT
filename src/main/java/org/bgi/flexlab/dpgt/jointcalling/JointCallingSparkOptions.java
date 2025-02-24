@@ -154,7 +154,7 @@ public class JointCallingSparkOptions implements Serializable {
         this.genotypeArguments.STANDARD_CONFIDENCE_FOR_CALLING = getOptionDoubleValue("s", this.genotypeArguments.STANDARD_CONFIDENCE_FOR_CALLING);
         this.genotypeArguments.useOldAFCalculator = getOptionBooleanValue("use-old-qual-calculator", true);  // note that we use old af calculator by default
         this.genotypeArguments.snpHeterozygosity = getOptionDoubleValue("heterozygosity", this.genotypeArguments.snpHeterozygosity);
-        this.genotypeArguments.indelHeterozygosity = getOptionDoubleValue("indel-heterozygosity", this.genotypeArguments.snpHeterozygosity);
+        this.genotypeArguments.indelHeterozygosity = getOptionDoubleValue("indel-heterozygosity", this.genotypeArguments.indelHeterozygosity);
         this.genotypeArguments.heterozygosityStandardDeviation = getOptionDoubleValue("heterozygosity-stdev", this.genotypeArguments.heterozygosityStandardDeviation);
         this.genotypeArguments.MAX_ALTERNATE_ALLELES = getOptionIntValue("max-alternate-alleles", this.genotypeArguments.MAX_ALTERNATE_ALLELES);
         this.genotypeArguments.samplePloidy = getOptionIntValue("ploidy", this.genotypeArguments.samplePloidy);
